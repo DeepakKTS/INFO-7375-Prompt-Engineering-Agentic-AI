@@ -111,6 +111,56 @@ implicit.
 
 ---
 
+## R5 · 2026-09-15 — The video displayed a temperature it could not support
+
+**Where:** B00 `TempHook`, and the same bug latent in B02 `TempDivide`.
+
+**Problem:** I pulled a frame from the compiled master and the readout said
+**"T = 0.9"**. There is no T = 0.9 anywhere in this project. The hook tweens bar
+heights between verified distributions, and I had let the temperature label
+interpolate along with them.
+
+Two things were wrong with that. 0.9 is not one of the chapter's temperatures, so the
+number had no source. Worse, the bars beside it were a *linear blend* of the T=1.0 and
+T=0.5 distributions, which is not the true softmax at 0.9 — so the frame paired an
+unsourced number with a distribution that does not exist.
+
+**Why it matters more than it looks:** this video's entire argument is that you should
+be able to say where every number came from. A single frame showing an invented
+temperature would have undercut the claim the video spends three minutes making. It
+also would have passed every automated check — Gate V measures layout and contrast, not
+whether a number is real.
+
+**Fix:** the readout now snaps to the stop the bars are moving *toward*, in both
+scenes. Bar heights still tween, because a tween is a visual transition rather than a
+claim; a number on screen is a claim. Applied the same rule to the divided scores in
+B02, which fade during transit rather than counting through values that were never
+computed.
+
+**Re-check:** re-rendered B00 and B02, pulled the same frame from the new master —
+"T = 1.0". Swept the remaining frames for any figure not present in `numbers.json`;
+none found.
+
+**Decision:** accepted. This is the defect I am most glad I caught.
+
+---
+
+## R6 · 2026-09-15 — Orphaned word on the final card
+
+**Where:** B07 `TempClose`.
+
+**Problem:** the course line wrapped, leaving "01" alone on its own line — on the last
+frame of the video, which is the frame a viewer looks at longest.
+
+**Fix:** `whiteSpace: nowrap` on that line, narrower notes column, slightly smaller
+mono size.
+
+**Re-check:** re-rendered; the line sits on one row and the card is balanced.
+
+**Decision:** accepted.
+
+---
+
 ## What I checked on the final cut
 
 See `CHECKS-REPORT.md` for the frame-by-frame results.
