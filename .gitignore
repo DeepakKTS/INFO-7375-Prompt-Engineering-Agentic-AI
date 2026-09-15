@@ -1,0 +1,28 @@
+# Generated render intermediates — all regenerable from beat_sheet.json + scripts/.
+# The final 1080p master IS tracked (fall2026/.../video/).
+**/media/
+**/clips/
+**/mp3/
+**/mp4/
+**/_qc/frames/
+**/.remotion-*
+**/qc-sheet.png
+**/*-slate.mp4
+
+# Toolkit machine state (rewritten on every build)
+**/build-state.json
+**/todo.json
+**/ToDo.md
+**/STATUS.md
+
+# Environments and caches
+.venv/
+node_modules/
+__pycache__/
+*.pyc
+
+# OS
+.DS_Store
+
+# The submission ZIP is built from the tracked tree; never commit it inside itself.
+*.zip

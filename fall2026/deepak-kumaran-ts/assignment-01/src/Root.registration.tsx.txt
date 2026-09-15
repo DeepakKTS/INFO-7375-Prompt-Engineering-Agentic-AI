@@ -1,0 +1,111 @@
+// Root.tsx registration block for the INFO 7375 Aperture scenes.
+// Paste into brutalist.art/runtime/remotion/src/Root.tsx.
+// Without a <Composition>, remotion_scenes.py cannot see a scene file at all.
+
+// --- 1. imports (beside the other scene imports) ---
+import {TempHook,      tempHookSchema}      from './scenes/TempHook';
+import {TempScores,    tempScoresSchema}    from './scenes/TempScores';
+import {TempDivide,    tempDivideSchema}    from './scenes/TempDivide';
+import {TempSoftmax,   tempSoftmaxSchema}   from './scenes/TempSoftmax';
+import {TempTriptych,  tempTriptychSchema}  from './scenes/TempTriptych';
+import {TempRatio,     tempRatioSchema}     from './scenes/TempRatio';
+import {TempBoundary,  tempBoundarySchema}  from './scenes/TempBoundary';
+import {TempClose,     tempCloseSchema}     from './scenes/TempClose';
+
+// --- 2. the metadata calculator (above 'export const RemotionRoot') ---
+const apertureMetadata = ({props}: {props: Record<string, unknown>}) => {
+  const d = Number(props?.durationInFrames);
+  return Number.isFinite(d) && d > 0 ? {durationInFrames: Math.round(d)} : {};
+};
+
+// --- 3. the compositions (inside the returned fragment) ---
+      <Folder name="INFO7375-Temperature">
+      <Composition
+        id="TempHook"
+        component={TempHook}
+        durationInFrames={420}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempHookSchema}
+        defaultProps={tempHookSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempScores"
+        component={TempScores}
+        durationInFrames={720}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempScoresSchema}
+        defaultProps={tempScoresSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempDivide"
+        component={TempDivide}
+        durationInFrames={840}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempDivideSchema}
+        defaultProps={tempDivideSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempSoftmax"
+        component={TempSoftmax}
+        durationInFrames={900}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempSoftmaxSchema}
+        defaultProps={tempSoftmaxSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempTriptych"
+        component={TempTriptych}
+        durationInFrames={1200}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempTriptychSchema}
+        defaultProps={tempTriptychSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempRatio"
+        component={TempRatio}
+        durationInFrames={840}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempRatioSchema}
+        defaultProps={tempRatioSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempBoundary"
+        component={TempBoundary}
+        durationInFrames={600}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempBoundarySchema}
+        defaultProps={tempBoundarySchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      <Composition
+        id="TempClose"
+        component={TempClose}
+        durationInFrames={480}
+        fps={30}
+        width={1920}
+        height={1080}
+        schema={tempCloseSchema}
+        defaultProps={tempCloseSchema.parse({})}
+        calculateMetadata={apertureMetadata}
+      />
+      </Folder>

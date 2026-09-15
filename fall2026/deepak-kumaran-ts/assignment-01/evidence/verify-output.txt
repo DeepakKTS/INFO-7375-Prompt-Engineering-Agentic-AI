@@ -1,0 +1,47 @@
+course repo : /Users/deepakzedler/Desktop/INFO 7375 Prompt Engineering & Agentic AI/info-7375-course
+output      : /Users/deepakzedler/Desktop/INFO 7375 Prompt Engineering & Agentic AI/Assignment 1/fall2026/deepak-kumaran-ts/assignment-01/numbers.json
+
+CHECK 1 — every distribution sums to 1
+  PASS  T=0.5 sum=1.0
+  PASS  T=1.0 sum=0.9999999999999999
+  PASS  T=2.0 sum=1.0
+
+CHECK 2 — p_i/p_k == exp((z_i - z_k)/T)   [the ratio law]
+  PASS  T=0.5 ratio=7.389056
+  PASS  T=1.0 ratio=2.718282
+  PASS  T=2.0 ratio=1.648721
+
+CHECK 3 — max-subtracted form == direct form
+  PASS  T=0.5 max delta=1.11e-16
+  PASS  T=1.0 max delta=1.11e-16
+  PASS  T=2.0 max delta=5.55e-17
+
+CHECK 4 — our table == the course's recorded worked examples  [THE REAL CHECK]
+  PASS  T=0.5 probabilities match exactly
+  PASS  T=0.5 seeded counts match exactly
+  PASS  T=1.0 probabilities match exactly
+  PASS  T=1.0 seeded counts match exactly
+  PASS  T=2.0 probabilities match exactly
+  PASS  T=2.0 seeded counts match exactly
+
+CHECK 5 — live subprocess run of the course main.py
+  PASS  T=1.0 probabilities match the live demo run
+  PASS  T=1.0 counts match the live demo run
+
+==============================================================================
+TEMPERATURE AS A CONCENTRATION CONTROL
+logits [1, 2, 3]  (outcome scores z)   ·   seed 7   ·   1000 draws
+==============================================================================
+    T |     P(A) z=1 |     P(B) z=2 |     P(C) z=3 |  P(C)/P(B)
+------------------------------------------------------------------------------
+  0.5 | 0.0158762400 | 0.1173104278 | 0.8668133322 |   7.389056
+  1.0 | 0.0900305732 | 0.2447284711 | 0.6652409558 |   2.718282
+  2.0 | 0.1863237232 | 0.3071958857 | 0.5064803911 |   1.648721
+------------------------------------------------------------------------------
+Lower T  -> more concentrated on the largest score.
+Higher T -> flatter; the smallest score gains probability.
+Ordering never changes. Temperature reshapes concentration, not rank.
+==============================================================================
+
+wrote /Users/deepakzedler/Desktop/INFO 7375 Prompt Engineering & Agentic AI/Assignment 1/fall2026/deepak-kumaran-ts/assignment-01/numbers.json
+ALL CHECKS PASSED — these numbers are cleared for the video.
