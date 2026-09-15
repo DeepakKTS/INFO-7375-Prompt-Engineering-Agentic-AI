@@ -92,7 +92,9 @@ def main():
         "act": "the starting point",
         "content_type": "structure",
         "narration_text": (
-            "Start with three scores: one, two, and three. The course calls them logits. "
+            "Start with three scores: one, two, and three. "
+            "The chapter chose these by hand — no model produced them. "
+            "The code calls them logits. "
             "They rank the outcomes, but they are not yet probabilities. "
             "Probabilities have to be non-negative and sum to one. These sum to six. "
             "And dividing by six is not the transformation we want — it would break on a negative score."
@@ -230,7 +232,8 @@ def main():
             "Why does that happen? Take any two outcomes and divide their probabilities. "
             "The normalising total cancels, and what is left is e raised to the difference "
             "of their scores, over T. "
-            "Here that gap is exactly one, so the ratio is simply e to the one over T: "
+            "Between the top two outcomes that difference is exactly one, "
+            "so their ratio is simply e to the one over T: "
             "seven point four at temperature one half, two point seven at one, "
             "and one point six at two. "
             "Temperature is not adding randomness. It is rescaling an exponent."

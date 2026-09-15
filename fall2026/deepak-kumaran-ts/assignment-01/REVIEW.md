@@ -161,6 +161,51 @@ mono size.
 
 ---
 
+## R7 · 2026-09-15 — Script fact-check found two statements the project could not support
+
+**Where:** B01 and B05 narration.
+
+**Problem 1 — the scores' provenance was never spoken.** The hook asks what temperature
+changes "in a language model" and the close refers to "the model's existing score
+differences", but nothing in the narration said that `[1, 2, 3]` were chosen by hand.
+The chapter is blunt about this: *"In this example I have chosen them; no model produced
+them"* (`:134`). A viewer could have left believing those were real model logits.
+
+**Problem 2 — a false generalisation.** B05 said *"Take any two outcomes and divide
+their probabilities … Here that gap is exactly one."* The gap is one for B–A and C–B,
+but it is **two** for C–A, where the ratio at T=0.5 is 54.598, not 7.389. The sentence
+invited the viewer to apply a number to a pair it does not describe.
+
+**Fix:** B01 now says *"The chapter chose these by hand — no model produced them,"* and
+carries a second chip, `CHOSEN BY HAND · NOT MODEL OUTPUT`. B05 now says *"Between the
+top two outcomes that difference is exactly one."*
+
+**Re-check:** regenerated audio for both beats (B01 18.92s → 22.14s, B05 24.60s →
+25.60s), re-rendered, recompiled. Runtime 2:39 → 2:43. Gate V still 0/0.
+
+**Decision:** accepted. Neither was a wrong number — every figure had already been
+verified. Both were failures of *precision in language*, which for this video is the
+same category of error as a wrong number.
+
+---
+
+## R8 · 2026-09-15 — Strike-through rule overran its text
+
+**Where:** B01, visible in the corrected master.
+
+**Problem:** the orange rule struck through "these sum to 6" continued well past the
+"6" to the right edge of the column. The element was `display: inline-block`, but its
+parent is a flex **column**, whose children stretch to full width by default — so the
+absolutely-positioned rule spanned the stretched box rather than the text.
+
+**Fix:** `alignSelf: 'flex-start'` so the box shrinks to its content.
+
+**Re-check:** re-rendered B01 and re-read the frame.
+
+**Decision:** accepted.
+
+---
+
 ## What I checked on the final cut
 
 See `CHECKS-REPORT.md` for the frame-by-frame results.

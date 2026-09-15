@@ -7,7 +7,7 @@
 **Why this concept:** it is small enough to demonstrate completely in three minutes,
 and Chapter 1 supplies every number needed to prove it, so nothing has to be asserted.
 
-**Runtime:** 2:39 (158.96s of measured narration) · 1920×1080 · 30 fps
+**Runtime:** 2:43 (163.18s of measured narration) · 1920×1080
 
 ---
 

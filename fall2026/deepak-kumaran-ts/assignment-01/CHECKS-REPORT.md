@@ -104,11 +104,11 @@ $ ffprobe video/temperature-concentration-control.mp4
 
 | Property | Value |
 |---|---|
-| Duration | **159.17 s (2:39)** — inside the assignment's 2–4 min window |
+| Duration | **163.38 s (2:43)** — inside the assignment's 2–4 min window |
 | Resolution | **1920 × 1080** |
 | Video | h264, 24 fps |
 | Audio | aac, 48 kHz, stereo |
-| Audio level | mean **−24.2 dB**, max **−3.5 dB** — no clipping, far above the −40 dB floor |
+| Audio level | mean **−24.3 dB**, max **−3.5 dB** — no clipping, far above the −40 dB floor |
 | Silent gaps > 1.5 s | **0** |
 | File size | 8.2 MB |
 
@@ -128,7 +128,7 @@ cannot tell you a number is stale or a typeface silently fell back.
 | First / last frame | correct |
 | Aspect ratio, file naming | correct |
 
-### Two defects found by looking, and fixed
+### Defects found by looking, and fixed
 
 1. **B00 displayed "T = 0.9".** The hook tweens bar heights between verified
    distributions, and the temperature readout was being interpolated along with them.
@@ -141,7 +141,16 @@ cannot tell you a number is stale or a typeface silently fell back.
 2. **B07 course line wrapped**, orphaning "01" onto its own line on the final card.
    Fixed with `nowrap` and a narrower notes column.
 
-A third defect — scene animations completing ~5 s into 20–26 s beats — was found
+3. **Two narration statements the project could not support** — found in a full
+   sentence-by-sentence fact-check of the script, not by any automated gate. The
+   scores' hand-chosen provenance was never spoken, and "any two outcomes … that gap is
+   exactly one" is false for the A–C pair (gap 2, ratio 54.598). Both corrected and
+   re-rendered; see `FACTCHECK.md` C1/C2 and `REVIEW.md` R7.
+
+4. **A strike-through rule overran its text** in B01 — a flex-column stretch issue.
+   Fixed with `alignSelf: flex-start`; `REVIEW.md` R8.
+
+A further defect — scene animations completing ~5 s into 20–26 s beats — was found
 earlier and is documented in `REVIEW.md` R3.
 
 ## 7. Semantic review (as a TA would ask)

@@ -33,7 +33,10 @@ export const TempScores: React.FC<Props> = ({labels, scores, heading}) => {
   const strike = useRise(at(0.63));
 
   return (
-    <Stage eyebrow="the starting point" chips={['COURSE INPUT · ch.1 §Part 2']}>
+    <Stage
+      eyebrow="the starting point"
+      chips={['COURSE INPUT · ch.1 §134', 'CHOSEN BY HAND · NOT MODEL OUTPUT']}
+    >
       <div style={{flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: height * 0.042}}>
         <Heading delay={at(0.02)}>{heading}</Heading>
 
@@ -75,7 +78,11 @@ export const TempScores: React.FC<Props> = ({labels, scores, heading}) => {
                 color: AP.INK_DIM,
                 fontVariantNumeric: 'tabular-nums',
                 position: 'relative',
+                // align-self, not inline-block: the parent is a flex COLUMN, whose
+                // children stretch to full width by default — which made the
+                // strike-through rule run far past the end of "these sum to 6".
                 display: 'inline-block',
+                alignSelf: 'flex-start',
               }}
             >
               these sum to {sum}

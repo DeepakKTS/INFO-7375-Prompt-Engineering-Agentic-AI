@@ -79,6 +79,69 @@ narration says "stipulate", not "is". The distribution shown alongside it (1.6 /
 
 ---
 
+## Script fact-check pass — two corrections made
+
+A full sentence-by-sentence audit of the narration was run against the sources after
+the first master was rendered. Every numerical value passed. Two statements did not,
+and both were corrected and re-rendered.
+
+### C1 — the scores' provenance was never stated (B01)
+
+**Problem.** The narration introduced the scores as "one, two, and three" and the
+closing beat refers to "the model's existing score differences". Combined with the
+hook's framing — "what does temperature actually change in a language model?" — a
+viewer could reasonably conclude that `[1, 2, 3]` are logits emitted by a real model.
+They are not, and the chapter is emphatic about it:
+
+> *"The word does not give these numbers extra authority. In this example I have chosen
+> them; no model produced them."* — `chapters/01-randomness-and-first-prompts.md:134`
+
+The on-screen chip said `COURSE INPUT`, but nothing said *hand-chosen*, and nothing
+said *not model output*.
+
+**Correction.** B01 now says: *"The chapter chose these by hand — no model produced
+them."* The beat carries two chips instead of one: `COURSE INPUT · ch.1 §134` and
+`CHOSEN BY HAND · NOT MODEL OUTPUT`.
+
+### C2 — "any two outcomes … that gap is exactly one" was false (B05)
+
+**Problem.** The narration read: *"Take any two outcomes and divide their
+probabilities … Here that gap is exactly one."* That is true only for the **top two**
+outcomes. Across the full set:
+
+| pair | gap | ratio at T = 0.5 |
+|---|---:|---:|
+| B − A | 1 | 7.389 |
+| C − B | 1 | 7.389 |
+| **C − A** | **2** | **54.598** |
+
+A viewer applying the sentence as spoken to outcomes A and C would compute 7.389 where
+the correct value is 54.598. The on-screen text was right (`z_C − z_B = 1`); the spoken
+line generalised where it should not have.
+
+**Correction.** B05 now says: *"Between the top two outcomes that difference is exactly
+one, so their ratio is simply e to the one over T."*
+
+### Checked and confirmed correct (no change needed)
+
+- every spoken figure matches `numbers.json` to the precision stated, and each is
+  prefixed with "about" where rounded — 0.135335 / 0.367879 / 1; total 1.503215;
+  9 / 24.5 / 66.5 %; 87 / 67 / 51 %; ratios 7.4 / 2.7 / 1.6
+- "about eighty-seven percent" and "about fifty-one percent" match the chapter's own
+  rounding at `:212`
+- "it would break on a negative score" — dividing by the sum yields a negative value
+  for a negative score, violating non-negativity; the chapter's stated reason for
+  rejecting that normaliser (`:136`)
+- "That is the whole intervention" — `temperature` appears exactly once in
+  `probabilities()`, in `(x - peak) / temperature`
+- "It only rescales the gaps" — dividing by T scales every pairwise difference by 1/T
+- "Temperature is not adding randomness" — randomness lives in `sample()`, not in
+  `probabilities()`; the chapter rejects the creativity/randomness framing at `:200`
+- the B06 answer key names outcome A, matching the chapter's own hypothetical, which
+  stipulates "label zero" (`:214`)
+
+---
+
 ## Claims deliberately NOT made
 
 - No claim that any Claude model exposes a temperature setting. The chapter warns this
