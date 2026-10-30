@@ -288,4 +288,4 @@ def test_bad_title_posting_gets_no_record_even_when_new(workdir):
 
 
 def test_unknown_subcommand_is_an_argument_error(workdir):
-    assert run_cli(["replay", "x"]) == 2
+    assert run_cli(["no-such-command", "x"]) == 2

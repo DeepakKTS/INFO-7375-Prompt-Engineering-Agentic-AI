@@ -56,6 +56,15 @@ Made by Claude Code while implementing `run` (2026-10-29); the ones that changed
 - The case 14 test imports the matcher as `jobwatch.textmatch.whole_word_match`.
 - The layout of `report.txt` is my own. Its header says a JUDGMENT is a model's output, not a fact.
 
+Made by Claude Code while implementing `replay`, `sample`, `experiment` and `labels/make_split.py` (2026-10-30); the ones that changed the contract are Amendments A7–A13.
+- `sample`, and `experiment` whenever it needs to call the judge, exit 2 without `ANTHROPIC_API_KEY`.
+- A saved raw response whose sha256 differs from its manifest exits 2 in `sample` and `experiment`; in `replay`, every failure, sha256 mismatches included, exits 1.
+- `sample` names each call's files `claude/<id>.<k>.*` (k = 1 to n); the validator result is `<stem>.validation.json`, holding the judgment object (status, reason, verdict, citations, model, called_at, raw_path).
+- `held-out` runs `git status --porcelain -- prompts/ <prompt files>` and `git ls-files --error-unmatch` on each prompt file, and refuses if either finds anything or git itself fails (for example, outside a repository).
+- The Wilson interval uses z = `NormalDist().inv_cdf(0.975)` (about 1.95996).
+- `make_split.py` sorts the ids numerically, takes `random.Random(seed).sample(ids, 10)` (sorted) as development and the rest as held-out; it refuses to replace an existing `split.json` that differs, and leaves an identical one alone.
+- `replay` takes `generated_at`, and an `error` judgment's `reason` and `called_at`, from the saved report.json, because nothing else records them; it also checks each saved `request.json` against one rebuilt from the prompt, and that the saved Claude files are for exactly the new ids.
+
 ## Sign-off — Job-Search Agent 1
 Checked:
 How:

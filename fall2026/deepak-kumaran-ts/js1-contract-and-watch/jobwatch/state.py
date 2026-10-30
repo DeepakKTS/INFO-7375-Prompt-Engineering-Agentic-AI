@@ -28,14 +28,19 @@ def load_state(token):
     path = state_path(token)
     if not path.exists() and not path.is_symlink():
         return State(False, None, set())
-
-    def corrupt(why):
-        raise Stop(CORRUPT_STATE, f"corrupt state file {path.as_posix()}: {why}")
-
     try:
         raw = path.read_bytes()
     except OSError:
-        corrupt("unreadable")
+        raise Stop(CORRUPT_STATE, f"corrupt state file {path.as_posix()}: unreadable") from None
+    return parse_state(raw, token, path.as_posix())
+
+
+def parse_state(raw, token, where):
+    """The checks of Refuses 6 on bytes already read; `where` names the file in the message."""
+
+    def corrupt(why):
+        raise Stop(CORRUPT_STATE, f"corrupt state file {where}: {why}")
+
     if not raw.strip():
         corrupt("empty")
     try:

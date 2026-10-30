@@ -2,6 +2,9 @@
 
 Its verdict is a judgment, labelled as one, and never merged into the rule's record.
 """
+import json
+from pathlib import Path
+
 from jobwatch.evidence import utc_iso
 from jobwatch.prompt import fill_user
 from jobwatch.validator import Invalid, parse_output
@@ -59,10 +62,15 @@ def not_run():
     return _judgment("not_run", "no_api_key")
 
 
-def judge_posting(client, prompt, model, resume, posting_id, posting_doc, run_dir, clock):
-    """One request, no retries. Every call leaves its request and exact response text on disk."""
+def judge_posting(client, prompt, model, resume, posting_id, posting_doc, out_dir, clock, stem=None):
+    """One request, no retries. Every call leaves its request and exact response text on disk.
+
+    Files are claude/<stem>.*; the stem is the posting id in a run, and names one call of several
+    in sample and experiment (Amendment A8).
+    """
+    stem = stem or posting_id
     request = build_request(prompt, model, resume, posting_id, posting_doc)
-    run_dir.write_json(f"claude/{posting_id}.request.json", request)
+    out_dir.write_json(f"claude/{stem}.request.json", request)
     called_at = utc_iso(clock())
     try:
         response = client.messages.create(**request)
@@ -70,19 +78,37 @@ def judge_posting(client, prompt, model, resume, posting_id, posting_doc, run_di
         return _judgment("error", f"api_error:{api_error_type(exc)}", model, called_at)
 
     text = "".join(b.text for b in response.content if getattr(b, "type", None) == "text")
-    raw_path = run_dir.write(f"claude/{posting_id}.response.txt", text)
+    raw_path = out_dir.write(f"claude/{stem}.response.txt", text)
     used_model = getattr(response, "model", None) or model
-    run_dir.write_json(f"claude/{posting_id}.response.meta.json", {
+    stop_reason = getattr(response, "stop_reason", None)
+    out_dir.write_json(f"claude/{stem}.response.meta.json", {
         "id": getattr(response, "id", None),
         "model": used_model,
-        "stop_reason": getattr(response, "stop_reason", None),
+        "stop_reason": stop_reason,
         "called_at": called_at,
     })
-    if response.stop_reason == "max_tokens":
-        return _judgment("rejected", "truncated", used_model, called_at, raw_path)
+    return judge_text(text, stop_reason, used_model, called_at, raw_path, posting_id, resume, posting_doc)
+
+
+def judge_text(text, stop_reason, model, called_at, raw_path, posting_id, resume, posting_doc):
+    """The judgment for one saved response: truncated, rejected with the validator's reason, or accepted."""
+    if stop_reason == "max_tokens":
+        return _judgment("rejected", "truncated", model, called_at, raw_path)
     try:
         out = parse_output(text, posting_id, resume, posting_doc)
     except Invalid as e:
-        return _judgment("rejected", e.reason, used_model, called_at, raw_path)
-    return _judgment("accepted", out["reason"], used_model, called_at, raw_path,
+        return _judgment("rejected", e.reason, model, called_at, raw_path)
+    return _judgment("accepted", out["reason"], model, called_at, raw_path,
                      verdict=out["verdict"], citations=out["citations"])
+
+
+def saved_judgment(directory, stem, posting_id, resume, posting_doc, raw_path):
+    """Re-validate a saved response (replay, experiment reuse); None if no response was saved."""
+    claude = Path(directory) / "claude"
+    text_file = claude / f"{stem}.response.txt"
+    if not text_file.exists():
+        return None
+    text = text_file.read_bytes().decode("utf-8")
+    meta = json.loads((claude / f"{stem}.response.meta.json").read_bytes())
+    return judge_text(text, meta.get("stop_reason"), meta.get("model"), meta.get("called_at"), raw_path,
+                      posting_id, resume, posting_doc)
