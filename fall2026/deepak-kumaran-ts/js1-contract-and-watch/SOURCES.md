@@ -29,3 +29,5 @@ labeling rule, all 20 hand labels, reports' conclusions, FRICTIONAL.md, sign-off
 - Claude Code (2026-10-29/30): tests/spec/, written from my ACCEPTANCE_CASES.md before any implementation.
 - Claude Code (2026-10-29): implemented jobwatch/, schema/resume.schema.json, tests/unit/; wrote tests/spec/ from my case list before the implementation; the contract amendments A1–A6 were my decisions.
 - Claude API as the judge under test (model, dates): responses saved under evidence/.
+- Claude (claude.ai chat, 2026-10-30): first drafts of prompts/v1.md and labels/LABELING_RULE.md; edited and adopted by me. The 20 hand labels are mine.
+- FRICTIONAL.md is written by me. Claude (chat) supplied a list of dated facts from our conversation, which I checked against my terminal and commits.

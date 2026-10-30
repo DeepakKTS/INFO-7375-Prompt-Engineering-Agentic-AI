@@ -17,6 +17,7 @@ python -m jobwatch run --board <token> --resume examples/persona_resume.json
 ## What ran
 | run | date (UTC) | kind | raw response | new postings |
 |---|---|---|---|---|
+| run 1 | 2026-10-30 02:58:37 UTC (2026-10-29 22:58 ET) | baseline, live | evidence/raw/20261030T025837Z_stripe.raw | 0 new. Produced by the code at e379a02; evidence committed in 61ec8b9. |
 
 ## Map
 CONTRACT.md · jobwatch/ · tests/ · evidence/ · state/ · labels/ · prompts/ · reports/ · SOURCES.md · FRICTIONAL.md
