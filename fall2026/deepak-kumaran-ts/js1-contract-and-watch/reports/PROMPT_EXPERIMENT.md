@@ -56,7 +56,7 @@ v1 → v2 (prompts/v2.md, commit fcd268a). One sentence is added to the System s
 
 **Why this change.** Claude Code proposed two candidates after the v1 development run. I picked A, this one, because it carries over LABELING_RULE.md's committed level threshold. B ("treat a stated minimum of years as a preference, not a hard limit") was rejected because it would tune the prompt toward labels that contradict that rule.
 
-**What happened.** v2 did not flip either posting. Both reasons still treat the stated minimum as above the persona's years. The 7983456 reason reads: "requires 5+ years of production ML experience. Riley has about 3 years of experience, below the stated minimum, so the level does not fit."
+**What happened.** v2 did not flip either posting. Both reasons still treat the stated minimum as above the persona's years. The 7983456 reason (claude-sonnet-5-5 via the CLI, 2026-10-30T19:47Z, evidence/experiments/development/9a4f0cb64ddb/claude/7983456.validation.json) reads: "requires 5+ years of production ML experience. Riley has about 3 years of experience, below the stated minimum, so the level does not fit."
 
 ## Results
 | set | n | rule (record) | prompt v1 | prompt v2 |
@@ -107,7 +107,7 @@ Four responses were rejected with `value_not_found`. Each cites `{"source": "res
 - **Overlapping intervals.** Every interval in the Results table overlaps every other. On development, rule [0.313, 0.832] and v1 [0.108, 0.603] overlap, and v1 and v2 are identical. Nothing here shows that one judge is better than another.
 - **One sample per case.** Each prompt saw each posting once. The sampling report shows that verdicts repeated on 5 development postings, but citations varied, and repeatability is not correctness.
 - **I labelled alone**, quickly, on 2026-10-30, with no second labeller and no agreement check.
-- **Truncation.** 4 of the 20 postings were cut at the 6000-character `content_text` limit, so the judge did not see their full text: 8144196, 8194283 and 8203220 (development) and 7747640 (held-out). I was shown the full text when labelling.
+- **Truncation.** 4 of the 20 postings were cut at the 6000-character `content_text` limit, so the judge did not see their full text: 8144196, 8194283 and 8203220 (development) and 7747640 (held-out). When labelling I read the full text, from private/to_label.md: Claude Code wrote it on 2026-10-30 from the raw response, and it is kept private and not committed.
 - **The judge is not a bare model call.** It is the Claude Code CLI, an agent wrapped around claude-sonnet-5-5. Here it was constrained by a replaced system prompt, no tools, no MCP servers, safe mode and an empty working directory. Its temperature and max_tokens cannot be set. That the default system prompt was replaced is inferred from about 2.7k–3.7k input tokens per call, not observed directly.
 - **One model, one date, one board** (Stripe, 2026-10-30).
 - **Run 2's agreement is on easy cases.** In run 2 (evidence/runs/20261030T195122Z_stripe/report.json), all 17 accepted judgments agreed with the rule. But all 20 new postings were clear negatives under the rule: 12 titles matched no target role, and 8 matched an excluded term. So 17 of 17 shows agreement on easy cases only.
