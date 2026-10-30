@@ -53,6 +53,7 @@ def render_text(report):
         source = f"source file {report['from_file']} (sha256 {report['from_file_sha256']})"
     else:
         source = "source network"
+    backend = f"backend {judge['backend']}, " if "backend" in judge else ""
     lines = [
         f"JOBWATCH  run {report['run_id']}  label {report['label']}  board {report['board']}",
         source,
@@ -61,7 +62,7 @@ def render_text(report):
         f"new {c['new']}, agree {c['agree']}, disagree {c['disagree']}",
         f"duplicates_dropped {report['duplicates_dropped']}, skipped_bad_id {report['skipped_bad_id']}, "
         f"skipped_bad_title {report['skipped_bad_title']}",
-        f"judge: {judge['status']} (model {judge['model']}, prompt sha256 {judge['prompt_sha256']})",
+        f"judge: {judge['status']} ({backend}model {judge['model']}, prompt sha256 {judge['prompt_sha256']})",
         "RECORD is the written rule's verdict. JUDGMENT is a model's output, not a fact; "
         "it is never merged into the RECORD.",
         "",

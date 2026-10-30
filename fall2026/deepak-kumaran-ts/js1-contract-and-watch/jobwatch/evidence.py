@@ -71,11 +71,11 @@ def new_stamp_dir(parent, now):
 
 
 class OutDir:
-    """A new evidence directory; refuses to reuse one that exists."""
+    """An evidence directory: new, unless exist_ok (a resumed experiment, Amendment A14)."""
 
-    def __init__(self, path):
+    def __init__(self, path, exist_ok=False):
         self.path = Path(path)
-        self.path.mkdir(parents=True)
+        self.path.mkdir(parents=True, exist_ok=exist_ok)
 
     def write(self, name, data):
         path = self.path / name

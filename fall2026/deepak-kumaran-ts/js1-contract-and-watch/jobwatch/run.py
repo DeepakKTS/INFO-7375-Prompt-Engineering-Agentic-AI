@@ -1,13 +1,14 @@
 """One `run`, step by step as in CONTRACT.md Order of operations."""
-import os
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
+from jobwatch.backends import make_judge
 from jobwatch.errors import BAD_RULE_VERDICT, NETWORK, OK, OTHER, Stop
 from jobwatch.evidence import RunDir, new_run_id, sha256_hex, utc_iso
 from jobwatch.fetch import FetchFailed, board_url, check_url, default_opener, fetch
 from jobwatch.inputs import check_token, load_resume
-from jobwatch.judge import judge_posting, make_client, not_run
+from jobwatch.judge import not_available, stopped_judgment
 from jobwatch.postings import location_name, parse_body, posting_document
 from jobwatch.prompt import load_prompt
 from jobwatch.report import agreement, build_report, render_text
@@ -24,8 +25,9 @@ def run(args, *, opener=None, client=None, now=None):
     # 1-3: inputs and state. Nothing is requested or written before these pass.
     check_token(token)
     resume, resume_raw = load_resume(args.resume)
-    key_set = bool(os.environ.get("ANTHROPIC_API_KEY"))
-    prompt = load_prompt(args.prompt) if key_set else None
+    judge = make_judge(args.judge, client)
+    judging = judge.available()
+    prompt = load_prompt(args.prompt) if judging else None
     state = load_state(token)
     label = "baseline" if not state.exists else ("seeded" if args.from_file else "live")
 
@@ -70,6 +72,7 @@ def run(args, *, opener=None, client=None, now=None):
         "prompt_path": prompt.path if prompt else None,
         "prompt_sha256": prompt.sha256 if prompt else None,
         "model": args.model,
+        "judge_backend": judge.name,
     }
     if response is not None and 300 <= response.status < 400:
         manifest["location_header"] = response.headers.get("Location")
@@ -89,9 +92,8 @@ def run(args, *, opener=None, client=None, now=None):
     parsed = parse_body(body)
     new = [] if not state.exists else [(p, j) for p, j in parsed.judgeable() if p not in state.seen_ids]
 
-    # 9: the rule and its validator, then the judge and its validator.
-    if key_set and new and client is None:
-        client = make_client()
+    # 9: the rule and its validator, then the judge and its validator. A claude-cli failure stops
+    # the judge; the postings after it are not judged (Amendment A14).
     records = []
     for pid, job in new:
         doc = posting_document(job)
@@ -100,10 +102,12 @@ def run(args, *, opener=None, client=None, now=None):
             check_verdict(verdict, resume, doc)
         except Invalid as e:
             raise Stop(BAD_RULE_VERDICT, f"the rule produced an invalid verdict for {pid} ({e.reason})") from None
-        if key_set:
-            judgment = judge_posting(client, prompt, args.model, resume, pid, doc, run_dir, clock)
+        if not judging:
+            judgment = not_available(judge)
+        elif judge.stopped:
+            judgment = stopped_judgment()
         else:
-            judgment = not_run()
+            judgment = judge.call(prompt, args.model, resume, pid, doc, run_dir, clock)
         records.append({
             "posting_id": pid,
             "title": job.get("title"),
@@ -126,7 +130,7 @@ def run(args, *, opener=None, client=None, now=None):
         parsed=parsed,
         previously_seen=sum(p in state.seen_ids for p, _ in parsed.kept),
         records=records,
-        judge={"status": "run" if key_set else "not_run", "model": args.model,
+        judge={"status": "run" if judging else "not_run", "backend": judge.name, "model": args.model,
                "prompt_sha256": prompt.sha256 if prompt else None},
     )
     run_dir.write_json("report.json", report)
@@ -136,4 +140,8 @@ def run(args, *, opener=None, client=None, now=None):
 
     # 11: every id ever seen, written atomically.
     write_state(token, state.seen_ids | {p for p, _ in parsed.kept}, utc_iso(clock()), run_dir.run_id)
+    if judge.stopped:
+        print(f"jobwatch: judge stopped: {judge.stopped['reason']} on posting {judge.stopped['posting_id']}; "
+              "later postings were not judged; report and state written", file=sys.stderr)
+        return OTHER
     return OK

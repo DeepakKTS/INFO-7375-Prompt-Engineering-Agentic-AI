@@ -1,11 +1,12 @@
-"""`replay RUN_DIR`: CONTRACT.md Interfaces › replay, and Amendment A9.
+"""`replay RUN_DIR`: CONTRACT.md Interfaces › replay, and Amendments A9 and A14.
 
 Offline, needs no key, writes nothing. Rebuilds the report from the saved raw response,
 state_before.json and the saved Claude responses, re-validates the responses, and exits 1 on any
 difference or sha256 mismatch.
 
 Not recomputable from files, so taken from the saved report.json: `generated_at`, and the
-`reason` and `called_at` of an `error` judgment (no response, so nothing else records them).
+`reason` and `called_at` of an sdk `error` judgment (no response, so nothing else records them).
+A claude-cli call records its error in response.meta.json, so it is recomputed.
 """
 import json
 from pathlib import Path
@@ -13,7 +14,8 @@ from pathlib import Path
 from jobwatch.errors import OK, OTHER, Stop
 from jobwatch.evidence import RUNS_DIR, sha256_hex
 from jobwatch.inputs import load_resume
-from jobwatch.judge import build_request, not_run, saved_judgment
+from jobwatch.backends import make_judge
+from jobwatch.judge import not_available, stopped_judgment
 from jobwatch.postings import location_name, parse_body, posting_document
 from jobwatch.prompt import load_prompt
 from jobwatch.report import agreement, build_report, render_text
@@ -49,6 +51,7 @@ def _check_sha(what, data, expected):
 
 def _rebuild(run_dir, manifest, saved_report, notes):
     run_id, token = manifest["run_id"], manifest["board"]
+    judge = make_judge(manifest.get("judge_backend", "sdk"))
 
     if not manifest.get("raw_path"):
         raise Mismatch("the manifest names no raw response")
@@ -85,11 +88,8 @@ def _rebuild(run_dir, manifest, saved_report, notes):
     saved_records = {r.get("posting_id"): r for r in saved_report.get("records", []) if isinstance(r, dict)}
     claude = run_dir / "claude"
     requested = {f.name[: -len(".request.json")] for f in claude.glob("*.request.json")} if claude.is_dir() else set()
-    expected = {p for p, _ in new} if prompt else set()
-    if requested != expected:
-        raise Mismatch(f"saved Claude requests are for {sorted(requested)}, expected {sorted(expected)}")
 
-    records, errors = [], []
+    records, errors, called, stopped = [], [], set(), False
     for pid, job in new:
         doc = posting_document(job)
         verdict = apply_rule(resume, job)
@@ -98,17 +98,25 @@ def _rebuild(run_dir, manifest, saved_report, notes):
         except Invalid as e:
             raise Mismatch(f"the rule's verdict for {pid} is invalid ({e.reason})") from None
         if prompt is None:
-            judgment = not_run()
+            judgment = not_available(judge)
+        elif stopped:
+            judgment = stopped_judgment()
         else:
-            if _json(claude / f"{pid}.request.json") != build_request(prompt, manifest["model"], resume, pid, doc):
+            called.add(pid)
+            if pid not in requested:
+                raise Mismatch(f"no saved request for posting {pid}")
+            if _json(claude / f"{pid}.request.json") != judge.request(prompt, manifest["model"], resume, pid, doc):
                 raise Mismatch(f"claude/{pid}.request.json differs from the request rebuilt from the prompt")
             raw_path = (RUNS_DIR / run_id / "claude" / f"{pid}.response.txt").as_posix()
-            judgment = saved_judgment(run_dir, pid, pid, resume, doc, raw_path)
+            judgment = judge.saved(run_dir, pid, pid, resume, doc, raw_path)
+            if judgment is None and judge.name == "claude-cli":
+                raise Mismatch(f"claude/{pid}.response.meta.json is missing")
             if judgment is None:
                 was = (saved_records.get(pid) or {}).get("judgment") or {}
                 judgment = {"status": "error", "reason": was.get("reason"), "verdict": None, "citations": None,
                             "model": manifest["model"], "called_at": was.get("called_at"), "raw_path": None}
                 errors.append(pid)
+            stopped = judge.name == "claude-cli" and judgment["status"] == "error"
         records.append({
             "posting_id": pid,
             "title": job.get("title"),
@@ -118,6 +126,8 @@ def _rebuild(run_dir, manifest, saved_report, notes):
             "judgment": judgment,
             "agreement": agreement(verdict, judgment),
         })
+    if requested != called:
+        raise Mismatch(f"saved Claude requests are for {sorted(requested)}, expected {sorted(called)}")
     if errors:
         notes.append(f"error judgment(s) {', '.join(errors)}: reason and called_at taken from report.json "
                      "(no response was saved)")
@@ -134,7 +144,7 @@ def _rebuild(run_dir, manifest, saved_report, notes):
         parsed=parsed,
         previously_seen=sum(p in seen for p, _ in parsed.kept),
         records=records,
-        judge={"status": "run" if prompt else "not_run", "model": manifest["model"],
+        judge={"status": "run" if prompt else "not_run", "backend": judge.name, "model": manifest["model"],
                "prompt_sha256": manifest.get("prompt_sha256")},
     )
 
@@ -166,6 +176,9 @@ def replay(args):
         print(f"replay {run_dir.as_posix()}: DIFFERENCE: {e}")
         return OTHER
 
+    if "backend" not in (saved_report.get("judge") or {}):
+        del rebuilt["judge"]["backend"]
+        notes.append("report.json predates Amendment A14: the judge backend was not compared")
     text = render_text(rebuilt)
     if not any(k in saved_report for k in A1_FIELDS):
         for k in A1_FIELDS:

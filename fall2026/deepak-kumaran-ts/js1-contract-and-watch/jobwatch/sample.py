@@ -1,15 +1,16 @@
-"""`sample`: the same prompt on the same postings, n separate calls each (CONTRACT.md Interfaces, A7, A8, A13).
+"""`sample`: the same prompt on the same postings, n separate calls each (CONTRACT.md Interfaces, A7, A8, A13, A14).
 
 Every call is its own request with no prior messages. Postings come from the saved raw response
-of --run; nothing is fetched.
+of --run; nothing is fetched. A claude-cli failure stops the command: results.json is written with
+"complete": false and the exit code is 1.
 """
-import os
+import sys
 from collections import Counter
 
-from jobwatch.errors import OK, REFUSED, Stop
+from jobwatch.backends import make_judge
+from jobwatch.errors import OK, OTHER, REFUSED, Stop
 from jobwatch.evidence import SAMPLING_DIR, OutDir, new_stamp_dir, sha256_hex, utc_iso
 from jobwatch.inputs import load_resume
-from jobwatch.judge import judge_posting, make_client
 from jobwatch.labels import SETS, load_split
 from jobwatch.postings import posting_document
 from jobwatch.prompt import load_prompt
@@ -31,10 +32,11 @@ def sample(args, *, client=None, clock):
         held = [p for p in ids if p in set(split[SETS["held-out"]])]
         if held:
             raise Stop(REFUSED, f"held-out posting(s) refused before the final held-out run: {', '.join(held)}")
-    if not os.environ.get("ANTHROPIC_API_KEY"):
-        raise Stop(REFUSED, "sample calls the judge and needs ANTHROPIC_API_KEY")
+    judge = make_judge(args.judge, client)
+    if not judge.available():
+        raise Stop(REFUSED, f"sample calls the judge and --judge {judge.name} is not available "
+                            f"({judge.unavailable_reason})")
 
-    client = client or make_client()
     started = clock()
     created_at = utc_iso(started)
     out = OutDir(new_stamp_dir(SAMPLING_DIR, started))
@@ -42,8 +44,10 @@ def sample(args, *, client=None, clock):
     for pid in ids:
         doc = posting_document(jobs[pid])
         for k in range(1, args.n + 1):
+            if judge.stopped:
+                break
             stem = f"{pid}.{k}"
-            judgment = judge_posting(client, prompt, args.model, resume, pid, doc, out, clock, stem=stem)
+            judgment = judge.call(prompt, args.model, resume, pid, doc, out, clock, stem=stem)
             out.write_json(f"claude/{stem}.validation.json", judgment)
             calls.append({"posting_id": pid, "k": k, **judgment})
 
@@ -66,14 +70,22 @@ def sample(args, *, client=None, clock):
         "prompt_path": prompt.path,
         "prompt_sha256": prompt.sha256,
         "model": args.model,
+        "judge_backend": judge.name,
         "n": args.n,
+        "complete": judge.stopped is None,
+        "stopped": judge.stopped,
         "posting_ids": ids,
         "per_posting": per_posting,
         "calls": calls,
     }
     out.write_json("results.json", results)
-    print(f"sample: {len(calls)} calls ({len(ids)} postings x {args.n}) written to {out.path.as_posix()}/")
+    print(f"sample: {len(calls)} of {len(ids) * args.n} calls ({len(ids)} postings x {args.n}) "
+          f"written to {out.path.as_posix()}/")
     for pid in ids:
         status = per_posting[pid]["status"]
         print(f"  {pid}: " + ", ".join(f"{s} {status.get(s, 0)}" for s in ("accepted", "rejected", "error")))
+    if judge.stopped:
+        print(f"jobwatch: judge stopped: {judge.stopped['reason']} on posting {judge.stopped['posting_id']}; "
+              "no further calls; results.json is incomplete", file=sys.stderr)
+        return OTHER
     return OK

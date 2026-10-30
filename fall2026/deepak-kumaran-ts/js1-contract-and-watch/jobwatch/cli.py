@@ -6,6 +6,7 @@ import argparse
 import sys
 from datetime import datetime, timezone
 
+from jobwatch.backends import BACKENDS
 from jobwatch.errors import OTHER, REFUSED, Stop
 from jobwatch.experiment import experiment
 from jobwatch.judge import DEFAULT_MODEL
@@ -26,6 +27,8 @@ def build_parser():
     r.add_argument("--from-file", dest="from_file", help="read a saved raw response instead of fetching (seeded)")
     r.add_argument("--prompt", default="prompts/v1.md", help="prompt contract, used only when ANTHROPIC_API_KEY is set")
     r.add_argument("--model", default=DEFAULT_MODEL, help=f"judge model (default {DEFAULT_MODEL})")
+    r.add_argument("--judge", default="sdk", choices=BACKENDS,
+                   help="judge backend: the anthropic SDK (needs ANTHROPIC_API_KEY) or the local Claude Code CLI")
 
     p = sub.add_parser("replay", help="rebuild a run's report from its saved files, offline; exit 1 on any difference")
     p.add_argument("run_dir", metavar="RUN_DIR", help="e.g. evidence/runs/<run_id>")
@@ -37,6 +40,8 @@ def build_parser():
     s.add_argument("--prompt", required=True, help="prompt contract")
     s.add_argument("--n", type=int, default=4, help="calls per posting (default 4)")
     s.add_argument("--model", default=DEFAULT_MODEL, help=f"judge model (default {DEFAULT_MODEL})")
+    s.add_argument("--judge", default="sdk", choices=BACKENDS,
+                   help="judge backend: the anthropic SDK (needs ANTHROPIC_API_KEY) or the local Claude Code CLI")
 
     e = sub.add_parser("experiment", help="score prompts and the rule against the hand labels of one set")
     e.add_argument("--set", required=True, choices=("development", "held-out"))
@@ -45,6 +50,8 @@ def build_parser():
     e.add_argument("--prompt-a", dest="prompt_a", required=True)
     e.add_argument("--prompt-b", dest="prompt_b", help="required for held-out; optional for development")
     e.add_argument("--model", default=DEFAULT_MODEL, help=f"judge model (default {DEFAULT_MODEL})")
+    e.add_argument("--judge", default="sdk", choices=BACKENDS,
+                   help="judge backend: the anthropic SDK (needs ANTHROPIC_API_KEY) or the local Claude Code CLI")
     return parser
 
 

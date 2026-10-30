@@ -3,6 +3,7 @@
 Its verdict is a judgment, labelled as one, and never merged into the rule's record.
 """
 import json
+import os
 from pathlib import Path
 
 from jobwatch.evidence import utc_iso
@@ -112,3 +113,37 @@ def saved_judgment(directory, stem, posting_id, resume, posting_doc, raw_path):
     meta = json.loads((claude / f"{stem}.response.meta.json").read_bytes())
     return judge_text(text, meta.get("stop_reason"), meta.get("model"), meta.get("called_at"), raw_path,
                       posting_id, resume, posting_doc)
+
+
+class SdkJudge:
+    """The anthropic SDK backend (the default). Its errors do not stop the command."""
+
+    name = "sdk"
+    unavailable_reason = "no_api_key"
+
+    def __init__(self, client=None):
+        self.client = client
+        self.stopped = None
+
+    def available(self):
+        return bool(os.environ.get("ANTHROPIC_API_KEY"))
+
+    def request(self, prompt, model, resume, posting_id, posting_doc):
+        return build_request(prompt, model, resume, posting_id, posting_doc)
+
+    def call(self, prompt, model, resume, posting_id, posting_doc, out_dir, clock, stem=None):
+        if self.client is None:
+            self.client = make_client()
+        return judge_posting(self.client, prompt, model, resume, posting_id, posting_doc, out_dir, clock, stem)
+
+    def saved(self, directory, stem, posting_id, resume, posting_doc, raw_path):
+        return saved_judgment(directory, stem, posting_id, resume, posting_doc, raw_path)
+
+
+def not_available(backend):
+    return _judgment("not_run", backend.unavailable_reason)
+
+
+def stopped_judgment():
+    """A posting left unjudged because an earlier call stopped the judge (Amendment A14)."""
+    return _judgment("not_run", "judge_stopped")
