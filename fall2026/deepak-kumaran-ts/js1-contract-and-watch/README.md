@@ -69,6 +69,7 @@ Made by Claude Code while implementing `replay`, `sample`, `experiment` and `lab
 Checked:
 How:
 Not checked:
+- That the CLI replaced its default system prompt; inferred only from about 3.3k input tokens per call.
 Not claiming:
 Signed or withheld:
 

@@ -3,8 +3,8 @@
 CONTRACT.md Interfaces › experiment, with Amendments A7 (--run), A8 (output, held-out refusals),
 A10 (--prompt-b optional on development), A11 (development reuses saved results), A12 (counts) and
 A14 (judge backends; a claude-cli failure stops the command and leaves results.json with
-"complete": false, which a later identical command resumes, calling only the postings with no
-saved response).
+"complete": false, which a later identical command resumes) and A15 (a held-out resume never sends
+a posting that already has a saved call).
 """
 import json
 import math
@@ -16,6 +16,7 @@ from jobwatch.backends import make_judge
 from jobwatch.errors import BAD_RULE_VERDICT, OK, OTHER, REFUSED, Stop
 from jobwatch.evidence import EXPERIMENTS_DIR, OutDir, atomic_write, json_bytes, sha256_hex, utc_iso, utc_stamp
 from jobwatch.inputs import load_resume
+from jobwatch.judge import _judgment
 from jobwatch.labels import SETS, load_hand_labels, load_split
 from jobwatch.postings import posting_document
 from jobwatch.prompt import load_prompt
@@ -147,7 +148,8 @@ def experiment(args, *, client=None, clock):
     baseline = {**score([r["outcome"] for r in rule_rows]), "postings": rule_rows}
 
     # Every refusal comes before the first call. A target is new, done (complete: re-scored from its
-    # files) or partial (resumed: only postings with no saved call, or a saved error, are called).
+    # files) or partial (resumed). On development a resume calls postings with no saved call or a saved
+    # error; on held-out it calls only postings with no saved call, so none is ever sent twice (A15).
     plan = []
     for name, path, prompt in prompts:
         target = EXPERIMENTS_DIR / args.set / prompt.sha256[:12]
@@ -156,7 +158,9 @@ def experiment(args, *, client=None, clock):
         if previous is not None:
             for pid in ids:
                 j = _saved(judge, target, pid, resume, docs[pid])
-                if j is not None and (previous.get("complete", True) or j["status"] != "error"):
+                if held_out and (target / "claude" / f"{pid}.request.json").exists():
+                    known[pid] = j or _judgment("error", "no_saved_response", args.model)
+                elif j is not None and (previous.get("complete", True) or j["status"] != "error"):
                     known[pid] = j
             if previous.get("complete", True) and len(known) != len(ids):
                 raise Stop(REFUSED, f"{target.as_posix()}: results.json is complete but saved calls are missing")

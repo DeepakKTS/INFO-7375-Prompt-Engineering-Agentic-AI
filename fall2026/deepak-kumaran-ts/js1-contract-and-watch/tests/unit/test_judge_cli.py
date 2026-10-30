@@ -197,13 +197,16 @@ def test_a_stopped_held_out_run_resumes_once_and_only_with_the_same_pair(workdir
     git(workdir, "init", "-q")
     git(workdir, "add", "prompts/")
     git(workdir, "commit", "-q", "-m", "prompts")
-    def b_fails_on_26(pid):
-        b_called = any(c["argv"][5] == "B" for c in runner.calls)
-        return (1, "", "boom") if pid == "26" and b_called else ok(pid)
 
-    runner.behaviour = b_fails_on_26
+    def b_fails_on_25(pid):
+        b_called = any(c["argv"][5] == "B" for c in runner.calls)
+        return (1, "", "boom") if pid == "25" and b_called else ok(pid)
+
+    runner.behaviour = b_fails_on_25
     argv = exp_args(setup, "held-out", b="prompts/b.md", extra=("--judge", "claude-cli"))
     assert run_cli(argv) == 1
+    assert [(c["argv"][5], re.search(r"ID=(\d+)", c["input"]).group(1)) for c in runner.calls] == [
+        ("A", "25"), ("A", "26"), ("B", "25")]
     assert json.loads((target(workdir, "held-out", "prompts/a.md") / "results.json").read_text())["complete"] is True
     assert json.loads((target(workdir, "held-out", "prompts/b.md") / "results.json").read_text())["complete"] is False
     swapped = exp_args(setup, "held-out", b="prompts/c.md", extra=("--judge", "claude-cli"))
@@ -213,3 +216,23 @@ def test_a_stopped_held_out_run_resumes_once_and_only_with_the_same_pair(workdir
     assert run_cli(argv) == 0
     assert [(c["argv"][5], re.search(r"ID=(\d+)", c["input"]).group(1)) for c in runner.calls] == [("B", "26")]
     assert run_cli(argv) == 2
+    assert len(runner.calls) == 1
+
+
+def test_a_held_out_posting_with_a_saved_call_is_never_sent_again(workdir, setup, runner):  # noqa: F811
+    """Even an error (here a timeout, after the prompt reached the CLI) is kept, not re-sent (A15)."""
+    git(workdir, "init", "-q")
+    git(workdir, "add", "prompts/")
+    git(workdir, "commit", "-q", "-m", "prompts")
+    runner.behaviour = lambda pid: _raise_timeout(pid) if pid == "26" else ok(pid)
+    argv = exp_args(setup, "held-out", b="prompts/b.md", extra=("--judge", "claude-cli"))
+    assert run_cli(argv) == 1
+    runner.behaviour = ok
+    assert run_cli(argv) == 0
+    sent = [(c["argv"][5], re.search(r"ID=(\d+)", c["input"]).group(1)) for c in runner.calls]
+    assert sent == [("A", "25"), ("A", "26"), ("B", "25"), ("B", "26")]
+    assert len(sent) == len(set(sent))
+    a = json.loads((target(workdir, "held-out", "prompts/a.md") / "results.json").read_text())
+    assert a["complete"] is True and a["counts"]["error"] == 1
+    assert [(r["posting_id"], r["status"], r["reason"]) for r in a["postings"]][1] == ("26", "error", "cli_timeout")
+    assert not (target(workdir, "held-out", "prompts/a.md") / "claude" / "previous").exists()
