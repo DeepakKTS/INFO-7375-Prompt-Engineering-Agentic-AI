@@ -1,6 +1,7 @@
 # Prompt experiment (Chapter 2)
 
 Labeling rule: labels/LABELING_RULE.md (committed ___ before labeling). Split frozen at commit ___.
+Frozen v1: prompts/v1.md as of commit 230cb5ee3780a91b71bd1498ece6d50344657a02 (git rev-parse HEAD, recorded before the first development experiment).
 Model: ___ · temperature: ___ · runs dated: ___
 
 ## The one change
