@@ -18,6 +18,7 @@ python -m jobwatch run --board <token> --resume examples/persona_resume.json
 | run | date (UTC) | kind | raw response | new postings |
 |---|---|---|---|---|
 | run 1 | 2026-10-30 02:58:37 UTC (2026-10-29 22:58 ET) | baseline, live | evidence/raw/20261030T025837Z_stripe.raw | 0 new. Produced by the code at e379a02; evidence committed in 61ec8b9. |
+| run 2 | 2026-10-30 19:51:22 UTC (2026-10-30 15:51 ET); same UTC date as run 1 (2026-10-30), different ET date | live (state from run 1), judge claude-cli, prompts/v1.md | evidence/raw/20261030T195122Z_stripe.raw | 20 new: 17 agree, 0 disagree, 3 rejected (value_not_found). Evidence in 2453cf3; replay exit 0. |
 
 ## Map
 CONTRACT.md · jobwatch/ · tests/ · evidence/ · state/ · labels/ · prompts/ · reports/ · SOURCES.md · FRICTIONAL.md
