@@ -261,4 +261,9 @@ with the persona in `examples/persona_resume.json`).
 one that wasn't, or shows a verdict whose citations don't resolve to that posting and the résumé.
 
 ## Amendments
-None.
+- 2026-10-29 A1 (Run labels): a run with no state file is `baseline` even when its body comes from `--from-file`; a run with state and `--from-file` is `seeded`. `report.json` and the `report.txt` header always show `source` (network or file), and for a file also its path and sha256. Why: Run labels did not say which label wins when both apply, and the report did not say where its body came from.
+- 2026-10-29 A2 (Out): records are exactly the postings counted in `new`, so `skipped_bad_title` postings get no record. Why: this reconciles Out's record sentence with the `counts` definitions.
+- 2026-10-29 A3 (Out › Citations, `content_text`): `html.unescape`, then strip tags, then `html.unescape` again, then whitespace normalisation, then truncation to 6000 characters. Why: Greenhouse content is escaped HTML, so one unescape leaves entities such as `&nbsp;` in the text the judge is sent and citations resolve against.
+- 2026-10-29 A4 (Order of operations): when a run stops at step 6, 7 or 9, no report is written; the manifest, and the raw file if one exists, stay as evidence. Why: the contract did not say what a stopped run leaves behind.
+- 2026-10-29 A5 (Out, manifest.json): a network failure with no response writes a manifest with null `raw_path`, `sha256` and `byte_length`, plus an `error` field. Why: the contract did not say what is recorded when there is no response at all.
+- 2026-10-29 A6 (Interfaces, Judge defaults; Out, files written): the judge client uses an SDK timeout of 60 s and `max_retries` 0, and each call also writes `claude/<id>.response.meta.json`. Why: "no retries" needed a stated client setting, and the response's id, model and stop_reason were not saved anywhere.

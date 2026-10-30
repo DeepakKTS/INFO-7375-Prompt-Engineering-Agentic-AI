@@ -98,10 +98,18 @@ def test_parse_body_lists_skips_and_keeps_first_duplicate():
     assert [pid for pid, _ in p.judgeable()] == ["1", "4"]
 
 
-def test_content_text_unescapes_once_strips_tags_and_truncates():
-    assert content_text("&lt;p&gt;Hello&lt;/p&gt;&lt;p&gt;world&amp;nbsp;!&lt;/p&gt;") == "Hello world&nbsp;!"
+def test_content_text_unescapes_strips_tags_unescapes_again_and_truncates():
+    assert content_text("&lt;p&gt;Hello&lt;/p&gt;&lt;p&gt;world&amp;nbsp;!&lt;/p&gt;") == "Hello world !"
+    # Escaped markup in the text survives as text: the second unescape runs after tag stripping.
+    assert content_text("&lt;p&gt;Use &amp;lt;b&amp;gt; tags &amp;amp; more&lt;/p&gt;") == "Use <b> tags & more"
     assert len(content_text("x " * 5000)) == 6000
     assert content_text(None) == ""
+
+
+def test_no_entities_left_in_content_text_of_the_real_capture():
+    for j in json.loads(CAPTURE.read_bytes())["jobs"]:
+        text = content_text(j.get("content"))
+        assert "&nbsp;" not in text and "&amp;" not in text and "&gt;" not in text, j["id"]
 
 
 def test_posting_document_is_exactly_the_contract_fields():

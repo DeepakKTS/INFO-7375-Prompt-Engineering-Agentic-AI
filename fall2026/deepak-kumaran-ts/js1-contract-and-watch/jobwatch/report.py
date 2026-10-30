@@ -7,11 +7,15 @@ def agreement(record, judgment):
     return "agree" if judgment["verdict"] == record["verdict"] else "disagree"
 
 
-def build_report(*, run_id, label, board, generated_at, parsed, previously_seen, records, judge):
+def build_report(*, run_id, label, board, source, from_file, from_file_sha256, generated_at, parsed,
+                 previously_seen, records, judge):
     return {
         "run_id": run_id,
         "label": label,
         "board": board,
+        "source": source,
+        "from_file": from_file,
+        "from_file_sha256": from_file_sha256,
         "generated_at": generated_at,
         "counts": {
             "postings": parsed.total,
@@ -45,8 +49,13 @@ def _judgment_line(j):
 def render_text(report):
     c = report["counts"]
     judge = report["judge"]
+    if report["source"] == "file":
+        source = f"source file {report['from_file']} (sha256 {report['from_file_sha256']})"
+    else:
+        source = "source network"
     lines = [
         f"JOBWATCH  run {report['run_id']}  label {report['label']}  board {report['board']}",
+        source,
         f"generated_at {report['generated_at']}",
         f"counts: postings {c['postings']}, unique {c['unique']}, previously_seen {c['previously_seen']}, "
         f"new {c['new']}, agree {c['agree']}, disagree {c['disagree']}",

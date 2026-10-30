@@ -23,10 +23,14 @@ def normalise_id(raw):
 
 
 def content_text(content):
-    """html.unescape, strip tags, normalise whitespace, keep the first 6000 characters."""
+    """html.unescape, strip tags, html.unescape again, normalise whitespace, keep 6000 characters.
+
+    Greenhouse content is escaped HTML, so the first unescape yields the markup and the second
+    turns entities left in its text (such as &nbsp;) into characters (Amendment A3).
+    """
     if not isinstance(content, str):
         return ""
-    text = _TAG.sub(" ", html.unescape(content))
+    text = html.unescape(_TAG.sub(" ", html.unescape(content)))
     return " ".join(text.split())[:CONTENT_TEXT_LIMIT]
 
 

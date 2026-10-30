@@ -27,5 +27,5 @@ labeling rule, all 20 hand labels, reports' conclusions, FRICTIONAL.md, sign-off
   the whole-word matching definition used in The rule; tests/conftest.py (test fakes
   that fix the seam's duck types).
 - Claude Code (2026-10-29/30): tests/spec/, written from my ACCEPTANCE_CASES.md before any implementation.
-- Claude Code (dates): <!-- what it implemented, which suggestions you rejected -->
+- Claude Code (2026-10-29): implemented jobwatch/, schema/resume.schema.json, tests/unit/; wrote tests/spec/ from my case list before the implementation; the contract amendments A1–A6 were my decisions.
 - Claude API as the judge under test (model, dates): responses saved under evidence/.

@@ -1,5 +1,6 @@
 """Unit tests for whole runs through the seam: seeded runs, files written, failures and judge outcomes. Written by Claude Code on 2026-10-29. All postings and responses are constructed."""
 import json
+import os
 import socket
 import urllib.error
 from datetime import timedelta
@@ -46,7 +47,10 @@ def test_baseline_writes_raw_manifest_report_and_state(workdir, capsys):
     assert not (run_dir / "state_before.json").exists()
     out = capsys.readouterr().out
     assert out == (run_dir / "report.txt").read_text()
+    assert out.splitlines()[1] == "source network"
     assert "Baseline run: no posting is reported as new" in out
+    report = json.loads((run_dir / "report.json").read_text())
+    assert (report["source"], report["from_file"], report["from_file_sha256"]) == ("network", None, None)
     state = json.loads((workdir / "state" / "acme.json").read_text())
     assert state == {"schema_version": 1, "board": "acme", "seen_ids": ["1"],
                      "updated_at": "2026-10-29T18:00:00Z", "last_run_id": "20261029T180000Z_acme"}
@@ -73,6 +77,37 @@ def test_seeded_run_reads_the_file_and_never_calls_the_opener(workdir):
     manifest = json.loads((run_dir / "manifest.json").read_text())
     assert manifest["url"] is None and manifest["http_status"] is None and manifest["source"] == "file"
     assert manifest["from_file"] == "saved.raw" and manifest["from_file_sha256"] == manifest["sha256"]
+    assert (report["source"], report["from_file"], report["from_file_sha256"]) == ("file", "saved.raw", manifest["sha256"])
+    header = (run_dir / "report.txt").read_text().splitlines()[1]
+    assert header == f"source file saved.raw (sha256 {manifest['sha256']})"
+
+
+def test_from_file_without_state_is_a_baseline(workdir):
+    saved = workdir / "saved.raw"
+    saved.write_bytes(board_body([job(5, "Data Scientist", "Seattle, WA")]))
+    opener = FakeOpener({})
+    assert run_cli(run_args(extra=("--from-file", "saved.raw")), opener=opener) == 0
+    assert opener.requests == []
+    report = latest_report(workdir)
+    assert report["label"] == "baseline" and report["source"] == "file"
+    assert report["records"] == [] and report["counts"]["new"] == 0
+    assert json.loads((workdir / "state" / "acme.json").read_text())["seen_ids"] == ["5"]
+
+
+@pytest.mark.skipif(not hasattr(os, "geteuid") or os.geteuid() == 0, reason="root can read a chmod 000 file")
+def test_unreadable_state_file_is_corrupt(workdir):
+    _baseline(workdir)
+    state = workdir / "state" / "acme.json"
+    before = state.read_bytes()
+    state.chmod(0)
+    try:
+        opener = _serve([job(1, "AI Engineer")])
+        assert run_cli(run_args(), opener=opener, now=FIXED_NOW + timedelta(minutes=1)) == 4
+        assert opener.requests == []
+        assert len(_runs(workdir)) == 1  # nothing written for the refused run
+    finally:
+        state.chmod(0o644)
+    assert state.read_bytes() == before
 
 
 def test_state_before_is_a_byte_copy(workdir):
@@ -112,8 +147,10 @@ def test_non_200_saves_bytes_and_stops_with_state_unchanged(workdir, status):
     assert run_cli(run_args(), opener=opener, now=FIXED_NOW + timedelta(minutes=1)) == 3
     assert (workdir / "state" / "acme.json").read_bytes() == before
     run_dir = _runs(workdir)[-1]
-    assert json.loads((run_dir / "manifest.json").read_text())["http_status"] == status
-    assert not (run_dir / "report.json").exists()
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest["http_status"] == status
+    assert (workdir / manifest["raw_path"]).read_bytes() == b"oops"
+    assert not (run_dir / "report.json").exists() and not (run_dir / "report.txt").exists()
 
 
 class _FailingOpener:
@@ -130,14 +167,21 @@ class _FailingOpener:
 ])
 def test_network_failure_exits_3_and_records_why(workdir, exc, kind):
     assert run_cli(run_args(), opener=_FailingOpener(exc)) == 3
-    manifest = json.loads((_runs(workdir)[0] / "manifest.json").read_text())
-    assert manifest["error"] == kind and manifest["raw_path"] is None
+    (run_dir,) = _runs(workdir)
+    manifest = json.loads((run_dir / "manifest.json").read_text())
+    assert manifest["error"] == kind
+    assert manifest["raw_path"] is None and manifest["sha256"] is None and manifest["byte_length"] is None
+    assert not (workdir / "evidence" / "raw").exists()
+    assert not (run_dir / "report.json").exists()
     assert not (workdir / "state").exists()
 
 
 @pytest.mark.parametrize("body", [b"not json", b"[]", b'{"jobs": {}}'])
 def test_body_that_is_not_a_jobs_list_stops_with_exit_1(workdir, body):
     assert run_cli(run_args(), opener=FakeOpener({BOARD_URL: (200, body, {})})) == 1
+    (run_dir,) = _runs(workdir)
+    assert (run_dir / "manifest.json").exists() and not (run_dir / "report.json").exists()
+    assert (workdir / "evidence" / "raw" / f"{run_dir.name}.raw").read_bytes() == body
     assert not (workdir / "state").exists()
 
 
@@ -149,6 +193,8 @@ def test_invalid_rule_verdict_exits_5_and_leaves_state(workdir, monkeypatch):
     monkeypatch.setattr(jobwatch.run, "apply_rule", lambda resume, j: {"verdict": "relevant", "citations": []})
     assert run_cli(run_args(), opener=_serve([job(9, "AI Engineer")]), now=FIXED_NOW + timedelta(minutes=1)) == 5
     assert (workdir / "state" / "acme.json").read_bytes() == before
+    run_dir = _runs(workdir)[-1]
+    assert (run_dir / "manifest.json").exists() and not (run_dir / "report.json").exists()
 
 
 def test_key_set_and_prompt_missing_is_refused_before_any_request(workdir, monkeypatch):
@@ -172,6 +218,9 @@ def test_request_file_records_model_and_settings(workdir, monkeypatch):
     assert call["messages"][0]["role"] == "user" and '"content_text"' in call["messages"][0]["content"]
     run_dir = _runs(workdir)[-1]
     assert json.loads((run_dir / "claude" / "9.request.json").read_text()) == call
+    meta = json.loads((run_dir / "claude" / "9.response.meta.json").read_text())
+    assert meta == {"id": "msg_fake_1", "model": "claude-sonnet-5-5", "stop_reason": "end_turn",
+                    "called_at": "2026-10-29T18:01:00Z"}
     report = latest_report(workdir)
     assert report["records"][0]["agreement"] == "agree" and report["counts"]["agree"] == 1
     assert report["judge"]["status"] == "run" and report["judge"]["prompt_sha256"]
@@ -219,6 +268,23 @@ def test_api_error_is_reported_and_posting_still_marked_seen(workdir, monkeypatc
     j = latest_report(workdir)["records"][0]["judgment"]
     assert j["status"] == "error" and j["reason"] == "api_error:other" and j["raw_path"] is None
     assert json.loads((workdir / "state" / "acme.json").read_text())["seen_ids"] == ["9"]
+
+
+def test_judge_client_has_60s_timeout_and_no_retries(monkeypatch):
+    from jobwatch.judge import make_client
+
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key-not-real")
+    client = make_client()  # constructing the client sends nothing
+    assert client.timeout == 60.0 and client.max_retries == 0
+
+
+def test_bad_title_posting_gets_no_record_even_when_new(workdir):
+    _baseline(workdir)
+    jobs = [job(1, "AI Engineer"), job(2, "—")]
+    assert run_cli(run_args(), opener=_serve(jobs), now=FIXED_NOW + timedelta(minutes=1)) == 0
+    report = latest_report(workdir)
+    assert [r["posting_id"] for r in report["records"]] == ["1"]
+    assert report["counts"]["new"] == 1 and report["skipped_bad_title"] == ["2"]
 
 
 def test_unknown_subcommand_is_an_argument_error(workdir):
