@@ -164,7 +164,7 @@ Not claiming:
 - That the agent finds jobs worth applying to: it watches one board for one fictional persona and never applies, emails or logs in.
 - That the same task was done three ways: surface A was analysed, not run.
 
-Signed or withheld: ____________ (name, date)
+Signed or withheld: Deepak Kumaran T S, 2026-10-31
 
 ## Driver's seat
 | part of the task | Claude did | I did | why that part stays mine | evidence (commit / edit / dated quote) |
