@@ -160,6 +160,7 @@ Not claiming:
 - That run 2's 17/17 agreement shows the judge is reliable: all 20 new postings were clear negatives under the rule.
 - That a pass rate here measures correctness or the labeling rule: it measures agreement with my labels, at least 7 of which contradict my rule (reports/PROMPT_EXPERIMENT.md lists them).
 - That the agent finds jobs worth applying to: it watches one board for one fictional persona and never applies, emails or logs in.
+- A second UTC calendar day between runs.
 
 Signed or withheld: ____________ (name, date)
 
