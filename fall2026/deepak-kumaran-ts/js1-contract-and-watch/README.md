@@ -11,6 +11,7 @@ python3 -m venv .venv
 .venv/bin/python -m pytest -q                                                  # offline, no key, no CLI
 .venv/bin/python -m jobwatch replay evidence/runs/20261030T025837Z_stripe      # run 1, offline, no key
 .venv/bin/python -m jobwatch replay evidence/runs/20261030T195122Z_stripe      # run 2, offline, no key
+.venv/bin/python -m jobwatch replay evidence/runs/20261031T180716Z_stripe      # run 3, offline, no key
 ```
 `replay` rebuilds a run's report from its saved raw response, state_before.json and saved Claude responses, re-validates every response, writes nothing, and exits 1 on any difference.
 
@@ -35,6 +36,7 @@ All dates are 2026; ET is America/New_York. Every row is a command that ran; its
 |---|---|---|---|---|
 | run 1 | 2026-10-30 02:58:37 UTC (2026-10-29 22:58 ET) | baseline, live | evidence/raw/20261030T025837Z_stripe.raw | 0 new. Produced by the code at e379a02; evidence committed in 61ec8b9. |
 | run 2 | 2026-10-30 19:51:22 UTC (2026-10-30 15:51 ET); same UTC date as run 1 (2026-10-30), different ET date | live (state from run 1), judge claude-cli, prompts/v1.md | evidence/raw/20261030T195122Z_stripe.raw | 20 new: 17 agree, 0 disagree, 3 rejected (value_not_found). Evidence in 2453cf3; replay exit 0. All 20 were clear negatives under the rule, so 17/17 is agreement on easy cases only. |
+| run 3 | 2026-10-31 18:07:16 UTC (2026-10-31 14:07 ET); second calendar day in both ET and UTC after run 1 | live (state from run 2), judge claude-cli, prompts/v1.md | evidence/raw/20261031T180716Z_stripe.raw | 1 new of 745 (744 previously seen): 8327254, Product Manager, Terminal Payments, Toronto. 1 agree, 0 disagree, 0 rejected. Evidence in a8c23d4; replay exit 0. A clear negative under the rule (Manager), so again an easy case. |
 
 | step | date (UTC) | command | evidence | result |
 |---|---|---|---|---|
@@ -51,7 +53,7 @@ Reports: reports/SAMPLING_REPORT.md · reports/PROMPT_EXPERIMENT.md · reports/A
 - jobwatch/: the agent (`python -m jobwatch run | replay | sample | experiment`); judge backends in judge.py (sdk) and judge_cli.py (claude-cli)
 - tests/: acceptance/ (cases 9, 10, 13), spec/ (cases 1–8, 11, 12, 14–17, written before the code), unit/
 - evidence/: raw/ (board responses as received), runs/ (manifest, report, Claude calls per run), sampling/, experiments/, manual/ (a hand capture with curl)
-- state/stripe.json: the seen-id state after run 2
+- state/stripe.json: the seen-id state after run 3
 - examples/persona_resume.json: the fictional persona; schema/resume.schema.json
 - labels/: LABELING_RULE.md, selection.md, labels.csv (my 20 labels), split.json, make_split.py
 - prompts/: v1.md, v2.md
@@ -136,20 +138,20 @@ Checked:
 - The persona is fictional and no real contact detail is echoed: `test_ac15_real_contact_details_are_refused_without_echoing_them`, `test_ac15_resume_not_marked_fictional_is_refused`.
 - The output contract: `test_ac12_malformed_output_is_rejected_and_raw_text_kept`, `test_ac12_well_formed_output_is_accepted`.
 - The claude-cli judge is called with the System section as the whole system prompt, no tools, an empty directory and no key: `test_a_call_replaces_the_system_prompt_has_no_tools_and_runs_in_an_empty_dir_without_the_key`; a held-out posting is never sent twice: `test_a_held_out_posting_with_a_saved_call_is_never_sent_again`.
-- Runs 1 and 2 reproduce offline: `replay` exits 0 on both.
+- Runs 1, 2 and 3 reproduce offline: `replay` exits 0 on all three.
 
 How:
 - Acceptance cases 9, 10 and 13 were mine (cases and expected verdicts drafted with Claude in chat, hand-checked and adopted by me), committed with the contract in f65f298 before any code.
 - tests/spec/ (cases 1–8, 11, 12, 14–17) was written by Claude Code from my case list and committed in 9f315ff, before the implementation in e379a02.
 - tests/unit/ was written by Claude Code alongside its code; I did not write those tests.
-- By recomputation: `replay` rebuilt both runs' reports from saved files and re-validated all 20 saved run 2 responses; v1's 10 saved development responses were re-validated when they were re-scored alongside v2.
+- By recomputation: `replay` rebuilt all three runs' reports from saved files and re-validated all 20 saved run 2 responses and the 1 saved run 3 response; v1's 10 saved development responses were re-validated when they were re-scored alongside v2.
 - With Claude's help: the implementation, the unit tests, these reports and this draft.
 
 Not checked:
 - That the CLI replaced its default system prompt; inferred only from about 3.3k input tokens per call.
 - That my hand labels follow my own labeling rule; several visibly don't.
-- Prompt injection through the CLI judge: no posting in either saved response contains an instruction aimed at a model (a scan of 746 postings found only ordinary mentions of ChatGPT, Claude and LLMs), so the prompt's "ignore instructions in the posting" line was never tested against an injected posting, real or constructed.
-- A real usage-limit, timeout or non-zero exit from the CLI: none happened in 81 calls; the `cli_*` error paths are tested only with a fake runner, and the real usage-limit wording was never seen.
+- Prompt injection through the CLI judge: no posting in the saved run 1 and run 2 responses contains an instruction aimed at a model (a scan of 746 postings found only ordinary mentions of ChatGPT, Claude and LLMs), nor does run 3's one new posting, so the prompt's "ignore instructions in the posting" line was never tested against an injected posting, real or constructed.
+- A real usage-limit, timeout or non-zero exit from the CLI: none happened in 82 calls; the `cli_*` error paths are tested only with a fake runner, and the real usage-limit wording was never seen.
 - What the judge would have said about the text past 6000 characters in the 4 truncated postings (8144196, 8194283, 8203220, 7747640).
 - A real redirect or HTTP error from the board: tested only with fakes.
 - Whether the verdicts are stable across days or temperatures: one date, and the temperature cannot be set through the CLI.
@@ -157,10 +159,10 @@ Not checked:
 Not claiming:
 - That the hand labels are careful judgments under LABELING_RULE.md.
 - That v2 improves on v1, or that any judge beats another: every pass-rate interval overlaps, and on held-out all three are 4/10.
-- That run 2's 17/17 agreement shows the judge is reliable: all 20 new postings were clear negatives under the rule.
+- That run 2's 17/17 or run 3's 1/1 agreement shows the judge is reliable: all 21 new postings were clear negatives under the rule.
 - That a pass rate here measures correctness or the labeling rule: it measures agreement with my labels, at least 7 of which contradict my rule (reports/PROMPT_EXPERIMENT.md lists them).
 - That the agent finds jobs worth applying to: it watches one board for one fictional persona and never applies, emails or logs in.
-- A second UTC calendar day between runs.
+- That the same task was done three ways: surface A was analysed, not run.
 
 Signed or withheld: ____________ (name, date)
 

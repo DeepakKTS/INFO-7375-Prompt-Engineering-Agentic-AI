@@ -79,7 +79,7 @@ Claude Code's text is quoted, dated and marked as Claude Code's. Nothing here wa
   - 746 postings, 20 new: 17 agree with the rule, 0 disagree, 3 rejected (the same off-by-one "Intern" citation).
   - Replay exited 0.
   - Run 1 was 2026-10-29 22:58 ET (02:58 UTC on 10-30). Run 2 was 2026-10-30 15:51 ET. That is a different ET date but the same UTC date.
-  - I planned a run 3 after 20:00 ET for a second UTC day. On 2026-10-31 I skipped it.
+  - I planned a run 3 after 20:00 ET for a second UTC day. On 2026-10-31 at 13:53 I first decided to skip it, then changed my mind before signing.
 - Checked / changed / learned (incl. unresolved): all 20 new postings were clear negatives under the rule, so 17/17 is agreement on easy cases only.
 - From Claude: none.
 - Trace: commits `2453cf3`, `7e44cf8`; private/logs/run2.log; README "What ran".
@@ -109,3 +109,16 @@ Claude Code's text is quoted, dated and marked as Claude Code's. Nothing here wa
 - Checked / changed / learned (incl. unresolved): every entry above comes from a commit, a log or a timestamped message. Nothing in it is my own contemporaneous account, except the 16:13 test result.
 - From Claude: the whole draft.
 - Trace: the commit that adds this file; SOURCES.md.
+
+### 2026-10-31 14:07, run 3
+- Tried: before signing, a third live run, made exactly like run 2 (`--judge claude-cli`, prompts/v1.md). I made it on a date that is 2026-10-31 in both ET and UTC, which Claude Code checked first.
+- Happened:
+  - 745 postings: 744 previously seen and 1 new, 8327254 (Product Manager, Terminal Payments, Toronto).
+  - The rule and the judge agree: not_relevant. Nothing was rejected.
+  - The run exited 0, and replay exited 0.
+- Checked / changed / learned (incl. unresolved):
+  - The two-runs requirement now has a real change on a second calendar day in both ET and UTC.
+  - Only one posting was new, and it is a clear negative under the rule (Manager). Run 3 adds no evidence on hard cases.
+  - The call took 1 turn, with 0 permission denials and 0 web tools.
+- From Claude: none beyond running it.
+- Trace: commit `a8c23d4`; evidence/runs/20261031T180716Z_stripe/report.json; private/logs/run3.log; README "What ran".
