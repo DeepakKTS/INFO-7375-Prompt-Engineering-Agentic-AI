@@ -29,6 +29,6 @@
 - Claude Code (2026-10-29): implemented jobwatch/, schema/resume.schema.json, tests/unit/; wrote tests/spec/ from my case list before the implementation; the contract amendments A1–A6 were my decisions.
 - The judge under test: claude-sonnet-5-5 through the Claude Code CLI 2.1.314 (`--judge claude-cli`), 81 calls on 2026-10-30 (1 smoke, 20 sampling, 20 development, 20 held-out, 20 in run 2); every request and raw response is saved under evidence/, with each validator result in the run's report.json or the call's validation.json.
 - Claude (claude.ai chat, 2026-10-30): first drafts of prompts/v1.md and labels/LABELING_RULE.md; edited and adopted by me. The 20 hand labels are mine.
-- FRICTIONAL.md is written by me. Claude (chat) supplied a list of dated facts from our conversation, which I checked against my terminal and commits.
+- FRICTIONAL.md: Drafted by Claude Code from the session record on 2026-10-30, at my request, because I ran out of time.
 - Claude Code (2026-10-30): implemented `replay`, `sample`, `experiment`, labels/make_split.py and the claude-cli judge backend, with their unit tests; listed the selection candidates by title only, drew the seeded 8 and wrote private/to_label.md; wrote scripts/exclusion_agreement.py; proposed the two candidate v2 changes (I picked one). Amendments A7–A15 were my decisions.
 - Reports, README and sign-off drafted by Claude Code from saved results on 2026-10-30; conclusions reviewed and edited by me.
