@@ -27,6 +27,7 @@ Leave every Deepak marker in place in those files. presubmit_check.sh fails whil
 - HTTP GET only, to exact allow-listed hosts, https on port 443, redirects refused.
 - All network and disk access goes through jobwatch/tools.py, which calls policy.check() first.
 - Paths are contained with os.path.realpath plus os.path.commonpath. Never str.startswith.
+- One exception, see GATE.md section 7 "Reads": jobwatch/verify.py reads files under runs/ with read-only open(path, "rb"); it never writes or uses the network.
 - The agent never applies, emails, messages, logs in, or uses any non-GET method.
 - Fictional persona only (Riley Okafor, @example.com). No real resume, contacts or tokens.
 
