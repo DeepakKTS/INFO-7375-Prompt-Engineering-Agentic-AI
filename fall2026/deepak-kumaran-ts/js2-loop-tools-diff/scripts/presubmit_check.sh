@@ -1,11 +1,14 @@
 #!/usr/bin/env bash
-# Pre-submit check for JS1. Run from inside js1-contract-and-watch/ in your git clone:
+# Pre-submit check for JS2, adapted from JS1's scripts/presubmit_check.sh (b91c877) by Claude Code
+# (Claude Opus 5.5), 2026-11-10. Run from inside js2-loop-tools-diff/ in a git clone with history:
 #   bash scripts/presubmit_check.sh [ZipName.zip]
-# Exits non-zero if anything a TA would deduct for is found. Builds the zip from the
-# committed tree (git archive), so the zip matches the commit hash it prints.
+# Exits non-zero if anything a TA would deduct for is found. Builds the zip from the committed
+# tree (git archive) only when every check passes, so the zip matches the commit it prints.
 set -uo pipefail
 
-ZIP="${1:-Sudharsanan_Deepak_INFO7375_JS1.zip}"
+ZIP="${1:-Sudharsanan_Deepak_INFO7375_JS2.zip}"
+PY="${PYTHON:-.venv/bin/python}"
+[ -x "$PY" ] || PY="python3"
 fail=0
 bad()  { echo "FAIL  $*"; fail=1; }
 good() { echo "ok    $*"; }
@@ -15,71 +18,90 @@ PREFIX="$(git rev-parse --show-prefix)"; PREFIX="${PREFIX%/}"
 [ -n "$PREFIX" ] || { echo "FAIL  run this from the assignment folder, not the repo root"; exit 1; }
 FOLDER="$(basename "$PREFIX")"
 TRACKED="$(git ls-files .)"
+RAW_BODIES='^(evidence/manual-capture/[^/]+/[^/]+\.body|runs/[^/]+/raw/.*|evidence/manual/[^/]+\.raw)$'
 
 # 1. Required files
-for f in README.md CONTRACT.md SOURCES.md FRICTIONAL.md requirements.txt \
-         reports/SAMPLING_REPORT.md reports/PROMPT_EXPERIMENT.md reports/ACTION_SURFACE.md \
-         labels/LABELING_RULE.md labels/labels.csv examples/persona_resume.json; do
+for f in README.md GATE.md POLICY.md REVIEW.md SIGNOFF.md FRICTIONAL.md SOURCES.md requirements.txt \
+         config/budgets.json config/boards.json config/boards-fwa.json \
+         evidence/manual-capture/CAPTURE.md jobwatch/loop.py jobwatch/tools.py jobwatch/policy.py jobwatch/verify.py; do
   echo "$TRACKED" | grep -qx "$f" && good "tracked: $f" || bad "missing or untracked: $f"
 done
 
-# 2. Unfilled template markers in docs (CLAUDE.md is excluded: it mentions TODO on purpose)
+# 2. GATE.md + POLICY.md (with predictions) committed before the first commit touching a .py file here
+gate_commit=""
+for c in $(git log --reverse --format=%H -- GATE.md POLICY.md); do
+  g="$(git show "$c:./GATE.md" 2>/dev/null)"; p="$(git show "$c:./POLICY.md" 2>/dev/null)"
+  if [ -n "$g" ] && [ -n "$p" ] && ! printf '%s\n%s' "$g" "$p" | grep -q 'TODO(Deepak)'; then gate_commit="$c"; break; fi
+done
+py_commit="$(git log --reverse --format=%H -- '*.py' | head -1)"
+if [ -z "$gate_commit" ]; then bad "no commit has GATE.md and POLICY.md without TODO(Deepak) markers"
+elif [ -z "$py_commit" ]; then bad "no .py file committed in this folder"
+elif [ "$gate_commit" = "$py_commit" ]; then bad "GATE.md/POLICY.md and the first .py were committed together"
+elif git merge-base --is-ancestor "$gate_commit" "$py_commit"; then good "GATE.md + POLICY.md (${gate_commit:0:7}) committed before the first .py (${py_commit:0:7})"
+else bad "the first .py commit does not descend from the GATE.md + POLICY.md commit"; fi
+
+# 3. budgets.json decision_ref names an entry in GATE.md section 2 (GATE.md, "Who may change a budget")
+ref="$("$PY" -c 'import json; print(json.load(open("config/budgets.json"))["decision_ref"].split(",")[-1].strip())' 2>/dev/null)"
+[ -n "$ref" ] && grep -q -- "^- $ref, " GATE.md && good "budgets.json decision_ref $ref is in GATE.md" || bad "budgets.json decision_ref '$ref' not found in GATE.md Budget decisions"
+
+# 4. At least 10 boundary tests exist and pass
+nb="$(grep -c -E '^def test_B[0-9]{2}_' tests/js2/test_boundary.py 2>/dev/null || echo 0)"
+if [ "$nb" -ge 10 ] && "$PY" -m pytest -q -p no:cacheprovider tests/js2/test_boundary.py >/tmp/js2_boundary.txt 2>&1; then
+  good "$nb boundary tests defined; $(tail -1 /tmp/js2_boundary.txt)"
+else bad "boundary tests: $nb defined, or they did not all pass (see /tmp/js2_boundary.txt)"; fi
+
+# 5. A committed live run whose trace records a failed board
+nfail=0
+for t in $(echo "$TRACKED" | grep -E '^runs/[^/]+/trace\.jsonl$'); do
+  if grep -q '"label": "live"' "$t" && grep -q '"outcome": "board FAILED"' "$t"; then nfail=$((nfail + 1)); fi
+done
+[ "$nfail" -ge 1 ] && good "$nfail live run trace(s) record a failed board" || bad "no committed live run trace records a failed board"
+
+# 6. Finished-wrong-answer evidence
+for f in evidence/finished-wrong-answer/README.md evidence/finished-wrong-answer/verify-20261110T200830Z.txt \
+         evidence/finished-wrong-answer/deepak-curl-check.txt; do
+  echo "$TRACKED" | grep -qx "$f" && good "tracked: $f" || bad "missing finished-wrong-answer evidence: $f"
+done
+grep -q '^SUSPECT' evidence/finished-wrong-answer/verify-20261110T200830Z.txt 2>/dev/null \
+  && good "verify output records SUSPECT" || bad "verify output has no SUSPECT flag"
+
+# 7. No TODO(Deepak) or template markers in tracked docs (CLAUDE.md mentions the markers on purpose)
 MD="$(echo "$TRACKED" | grep -E '\.md$' | grep -v -x 'CLAUDE.md')"
-if [ -n "$MD" ]; then
-  hits="$(echo "$MD" | xargs grep -n -E 'YYYY-MM-DD|___|YOU WRITE|YOU CHOOSE|Provenance note|<!--' 2>/dev/null)"
-  [ -z "$hits" ] && good "no unfilled template markers in docs" || { bad "unfilled template markers:"; echo "$hits" | head -40; }
-fi
+hits="$(echo "$MD" | xargs grep -n -E 'TODO\(Deepak\)|YYYY-MM-DD|YOU WRITE|YOU CHOOSE|## Entry template|<!--' 2>/dev/null)"
+[ -z "$hits" ] && good "no TODO(Deepak) or template markers in docs" || { bad "markers remain:"; echo "$hits" | head -40; }
 
-# 3. Open work in code
+# 8. No open work in code
 CODE="$(echo "$TRACKED" | grep -E '\.(py|sh|toml|cfg)$' | grep -v -x 'scripts/presubmit_check.sh')"
-if [ -n "$CODE" ]; then
-  hits="$(echo "$CODE" | xargs grep -n -E 'TODO|FIXME|TBD|XXX|NotImplementedError|^\s*pass\s*#' 2>/dev/null)"
-  [ -z "$hits" ] && good "no TODO/stub markers in code" || { bad "open work in code:"; echo "$hits" | head -40; }
-fi
+hits="$(echo "$CODE" | xargs grep -n -E 'TODO|FIXME|TBD|XXX|NotImplementedError|^\s*pass\s*#' 2>/dev/null)"
+[ -z "$hits" ] && good "no TODO/stub markers in code" || { bad "open work in code:"; echo "$hits" | head -40; }
 
-# 4. Things that must never be committed
-hits="$(echo "$TRACKED" | grep -E '(^|/)(\.env|\.venv|__pycache__|\.pytest_cache|private|transcripts)(/|$)|\.key$|\.zip$|\.pyc$')"
+# 9. FRICTIONAL.md has a dated entry; SIGNOFF.md is signed or withheld with a name and date
+grep -q -E '^### 20[0-9]{2}-[0-9]{2}-[0-9]{2}' FRICTIONAL.md && good "FRICTIONAL.md has dated entries" || bad "FRICTIONAL.md has no dated entry"
+grep -A2 -E '^## Signed or withheld' SIGNOFF.md | grep -q -E '[A-Za-z].*20[0-9]{2}' && good "SIGNOFF.md is signed or withheld with a date" || bad "SIGNOFF.md has no name and date under Signed or withheld"
+
+# 10. Things that must never be committed
+hits="$(echo "$TRACKED" | grep -E '(^|/)(\.env[^/]*|\.venv|venv|__pycache__|\.pytest_cache|\.mypy_cache|\.ruff_cache|private|transcripts)(/|$)|\.key$|\.zip$|\.pyc$|\.egg-info(/|$)')"
 [ -z "$hits" ] && good "no caches, credentials, private dirs or zips tracked" || { bad "should not be tracked:"; echo "$hits"; }
+hits="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES" | xargs grep -n -I -E 'sk-ant-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----' 2>/dev/null)"
+[ -z "$hits" ] && good "no credential patterns outside raw response bodies" || { bad "possible credentials:"; echo "$hits" | head -20; }
 
-# 5. Persona privacy: emails outside example.com in résumé/test/doc files
-#    (evidence/raw is skipped: real postings contain employers' own contact emails)
-SCAN="$(echo "$TRACKED" | grep -v '^evidence/raw/')"
-if [ -n "$SCAN" ]; then
-  hits="$(echo "$SCAN" | xargs grep -n -o -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null | grep -v -i '@example\.com')"
-  [ -z "$hits" ] && good "every email outside evidence/raw is @example.com" || { bad "non-example.com emails (check each):"; echo "$hits" | head -20; }
-fi
+# 11. Persona privacy: emails outside example.com, except in raw response bodies (employers' own addresses)
+SCAN="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES")"
+hits="$(echo "$SCAN" | xargs grep -n -o -I -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null | grep -v -i '@example\.com')"
+[ -z "$hits" ] && good "every email outside raw response bodies is @example.com" || { bad "non-example.com emails (check each):"; echo "$hits" | head -20; }
 
-# 6. Your own denylist: real email, phone, street, etc. One term per line in ~/.js1_denylist.
-#    Do NOT list your name: it belongs in the sign-off.
-if [ -f "$HOME/.js1_denylist" ]; then
-  hits="$(echo "$TRACKED" | xargs grep -n -i -F -f "$HOME/.js1_denylist" 2>/dev/null)"
-  [ -z "$hits" ] && good "no denylisted personal terms" || { bad "personal terms found:"; echo "$hits" | head -20; }
-else
-  echo "warn  ~/.js1_denylist not found; personal-data check skipped"
-fi
+# 12. Personal denylist: one term per line in ~/.js2_denylist (or ~/.js1_denylist). Do not list your name.
+DENY="$HOME/.js2_denylist"; [ -f "$DENY" ] || DENY="$HOME/.js1_denylist"
+if [ -f "$DENY" ]; then
+  hits="$(echo "$TRACKED" | xargs grep -n -i -I -F -f "$DENY" 2>/dev/null)"
+  [ -z "$hits" ] && good "no denylisted personal terms ($(basename "$DENY"))" || { bad "personal terms found:"; echo "$hits" | cut -c1-160 | head -20; }
+else echo "warn  no ~/.js2_denylist or ~/.js1_denylist; personal-data check skipped"; fi
 
-# 7. Contract written before code (git history order)
-c_commit="$(git log --reverse --diff-filter=A --format=%H -- CONTRACT.md | head -1)"
-py_commit="$(git log --reverse --diff-filter=A --format=%H -- 'jobwatch/*.py' 'jobwatch/**/*.py' | head -1)"
-if [ -z "$c_commit" ]; then bad "CONTRACT.md has never been committed"
-elif [ -z "$py_commit" ]; then echo "warn  no jobwatch/*.py committed yet"
-elif [ "$c_commit" = "$py_commit" ]; then bad "CONTRACT.md and the first code were added in the same commit"
-elif git merge-base --is-ancestor "$c_commit" "$py_commit"; then good "CONTRACT.md (${c_commit:0:7}) committed before first code (${py_commit:0:7})"
-else bad "first code commit does not descend from the CONTRACT.md commit"; fi
+# 13. Full test suite passes offline
+if "$PY" -m pytest -q -p no:cacheprovider >/tmp/js2_pytest.txt 2>&1; then good "pytest: $(tail -1 /tmp/js2_pytest.txt)"
+else bad "pytest failed (see /tmp/js2_pytest.txt)"; tail -15 /tmp/js2_pytest.txt; fi
 
-# 8. Evidence from two runs
-nraw="$(echo "$TRACKED" | grep -c '^evidence/raw/' || true)"
-nstate="$(echo "$TRACKED" | grep -c '^state/' || true)"
-[ "$nraw" -ge 2 ] && good "$nraw raw evidence files tracked" || bad "need >= 2 raw responses in evidence/raw (found $nraw)"
-[ "$nstate" -ge 1 ] && good "state file tracked" || bad "no state file tracked under state/"
-
-# 9. Tests pass offline
-if command -v python >/dev/null 2>&1; then
-  if python -m pytest -q >/tmp/js1_pytest.txt 2>&1; then good "pytest: $(tail -1 /tmp/js1_pytest.txt)"
-  else bad "pytest failed (see /tmp/js1_pytest.txt)"; tail -15 /tmp/js1_pytest.txt; fi
-else echo "warn  python not on PATH; tests not run"; fi
-
-# 10. Clean tree, so the zip and the GitHub folder are the same commit
+# 14. Clean tree, so the zip and the GitHub folder are the same commit
 if [ -n "$(git status --porcelain -- .)" ]; then bad "uncommitted changes in this folder:"; git status --short -- .
 else good "working tree clean"; fi
 
@@ -88,8 +110,8 @@ if [ "$fail" -ne 0 ]; then echo "NOT READY: fix the FAIL lines above. No zip bui
 HASH="$(git rev-parse HEAD)"
 OUT="$(cd .. && pwd)/$ZIP"
 git -C "$(git rev-parse --show-toplevel)" archive --format=zip --prefix="$FOLDER/" -o "$OUT" "HEAD:$PREFIX"
-unzip -l "$OUT" >/dev/null 2>&1 && echo "zip has $(unzip -Z1 "$OUT" | grep -vc '/$') files" || true
+echo "zip has $(unzip -Z1 "$OUT" | grep -vc '/$') files; sha256 $(shasum -a 256 "$OUT" | cut -d' ' -f1)"
 echo "READY"
-echo "zip:    $(cd .. && pwd)/$ZIP (built from the commit below)"
+echo "zip:    $OUT (built from the commit below)"
 echo "commit: $HASH"
 echo "Check this commit is pushed: git branch -r --contains $HASH"
