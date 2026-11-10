@@ -15,7 +15,7 @@ from datetime import datetime, timezone
 
 from jobwatch import providers
 from jobwatch.errors import Stop
-from jobwatch.inputs import check_resume
+from jobwatch.persona import check_resume
 from jobwatch.policy import HOST_SYSTEM, Policy
 from jobwatch.rule import apply_rule
 from jobwatch.tools import ApprovalDenied, PolicyDenied, RepeatRefused, Tools
