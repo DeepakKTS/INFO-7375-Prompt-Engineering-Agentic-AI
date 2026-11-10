@@ -13,7 +13,7 @@ The full policy is in GATE.md, section 5. It is enforced in jobwatch/policy.py, 
 
 ## Boundary cases
 
-Actual (pytest) source: `evidence/pytest/20261110T193805Z-full-v.txt` (2026-11-10 19:38 UTC, 14:38 ET); each B test prints its policy decision and outcome, shown with `-rP`.
+Actual (pytest) source: `evidence/pytest/20261110T195646Z-full-v.txt` (2026-11-10 19:56 UTC, 14:56 ET; first filled from `evidence/pytest/20261110T193805Z-full-v.txt`, same B lines); each B test prints its policy decision and outcome, shown with `-rP`.
 
 | ID | Request | Kind | Expected (Deepak) | Actual (pytest) | Test |
 |---|---|---|---|---|---|
@@ -22,7 +22,7 @@ Actual (pytest) source: `evidence/pytest/20261110T193805Z-full-v.txt` (2026-11-1
 | B03 | GET https://boards-api.greenhouse.io@evil.com/ | fetch | DENY — Userinfo confusion; actual destination is evil.com. | policy DENY; outcome PolicyDenied raised, no request sent. PASSED | test_B03_userinfo_trick |
 | B04 | GET http://boards-api.greenhouse.io/v1/boards/stripe/jobs | fetch | DENY — Plain HTTP is not permitted. | policy DENY; outcome PolicyDenied raised, no request sent. PASSED | test_B04_plain_http |
 | B05 | POST https://api.lever.co/v0/postings/x (via policy.check) | fetch | DENY — POST is not an approved fetch method. | policy DENY (policy.check with method POST); no tool can send POST. PASSED | test_B05_post_to_allowed_host |
-| B06 | an allowed host answers 302 (SEEDED mock transport) | fetch | DENY — Redirects are not trusted; destination must be revalidated. | policy ALLOW for the GET to the allowed host; outcome 302 returned and not followed (Location never opened), board FAILED redirect_refused. PASSED | test_B06_redirect_refused |
+| B06 | an allowed host answers 302 (SEEDED mock transport) | fetch | DENY — Redirects are not trusted; destination must be revalidated. | policy ALLOW (GET); outcome redirect refused: 302 returned and not followed (Location never opened), board FAILED redirect_refused. PASSED | test_B06_redirect_refused |
 | B07 | write runs/../outside.txt | write | DENY — Path traversal escapes the permitted directory. | policy DENY; outcome PolicyDenied raised, nothing written. PASSED | test_B07_dotdot_escape |
 | B08 | write runs-evil/x.json beside runs/ | write | DENY — Sibling directory is outside the runs/ boundary. | policy DENY; outcome PolicyDenied raised, nothing written. PASSED | test_B08_prefix_trick |
 | B09 | write through a symlink in runs/ that points outside the folder | write | DENY — Symlink resolves outside the JS2 folder. | policy DENY; outcome PolicyDenied raised, nothing written. PASSED | test_B09_symlink_escape |
