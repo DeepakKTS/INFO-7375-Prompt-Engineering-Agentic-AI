@@ -263,15 +263,7 @@ class Loop:
         self.context = {}
 
         status = decide_exit(self.results, budget_hit, error)
-        state_updated = False
-        if status in (FINISHED, INCOMPLETE):
-            try:
-                self._commit_state(state_doc, status)
-                state_updated = True
-            except Exception as e:
-                error = {"error": f"state write failed: {type(e).__name__}: {e}", "step": "state replace"}
-                status = ERROR
-        return self._finish(status, error, budget_hit, unvisited, budgets, state_raw, state_updated)
+        return self._finish(status, error, budget_hit, unvisited, budgets, state_raw, state_doc)
 
     def _visit(self, board, budgets, budget, last_at, state_doc, resume):
         key = board_key(board)
@@ -354,8 +346,11 @@ class Loop:
         self.policy.arm_state_commit(status)
         self.tools.write_file(STATE_PATH, json_bytes(doc))
 
-    def _finish(self, status, error, budget_hit, unvisited, budgets, state_raw, state_updated):
+    def _finish(self, status, error, budget_hit, unvisited, budgets, state_raw, state_doc):
         code = EXIT_CODES[status]
+        # GATE.md section 1: state changes only on FINISHED or INCOMPLETE. The replace runs below,
+        # only after the run record is written, so a failed record write leaves state untouched.
+        state_updated = status in (FINISHED, INCOMPLETE)
         failed = [r["key"] for r in self.results if r["status"] != "OK"]
         if error is not None:
             cause = f"{error['error']} (step: {error['step']})"
@@ -390,6 +385,16 @@ class Loop:
         except Exception as e:
             print(f"jobwatch: ERROR: could not write the run record: {type(e).__name__}: {e}", file=sys.stderr)
             return EXIT_CODES[ERROR]
+        if state_updated:
+            try:
+                self._commit_state(state_doc, status)
+            except Exception as e:
+                error = {"error": f"state write failed: {type(e).__name__}: {e}", "step": "state replace"}
+                summary.update(exit=ERROR, exit_code=EXIT_CODES[ERROR], needs_deepak=True, state_updated=False,
+                               error=error, cause=f"{error['error']} (step: state replace)")
+                self.tools.write_file(f"{self.run_dir}/summary.json", json_bytes(summary))
+                print(f"jobwatch: ERROR: {summary['cause']}", file=sys.stderr)
+                return EXIT_CODES[ERROR]
         if code != 0:
             print(f"jobwatch: {status}: {cause}", file=sys.stderr)
         else:
