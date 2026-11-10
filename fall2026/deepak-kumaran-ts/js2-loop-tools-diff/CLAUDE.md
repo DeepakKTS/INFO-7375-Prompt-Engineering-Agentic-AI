@@ -36,3 +36,11 @@ Leave every Deepak marker in place in those files. presubmit_check.sh fails whil
 - Commit evidence before writing about it. Small commits, subjects prefixed "js2:".
 - Never weaken, skip, xfail or delete a test to get green. Report failures and stop.
 - After each phase, append factual lines (ET time, command, exit code, commit hash) to private/SESSION_LOG.md, then print 3 short questions to help Deepak write his FRICTIONAL entry.
+
+## Carried from JS1
+- GATE.md is the spec. If code and GATE.md disagree, GATE.md wins. If GATE.md is unclear or silent, stop and ask.
+- Protected files: examples/persona_resume.json, labels/, prompts/, tests/conftest.py, plus Deepak's files listed above. If you think a protected file is wrong, tell Deepak why; don't edit it.
+- Do not call the Anthropic API or run the Claude judge.
+- Stack: Python 3.15.0, stdlib urllib for HTTP, pinned requirements.txt with only anthropic, jsonschema and pytest unless Deepak approves more. One entry point: python -m jobwatch.
+- No TODO, FIXME, stub, placeholder pass or "not implemented" path in delivered code. Deepak's TODO(Deepak) markers in the .md files are intentional until Gate 6.
+- After every change, list the files touched and the GATE.md clause each change serves.
