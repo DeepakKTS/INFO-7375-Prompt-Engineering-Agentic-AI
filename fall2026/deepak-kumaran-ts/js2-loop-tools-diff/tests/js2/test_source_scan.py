@@ -1,0 +1,163 @@
+"""Source scans: GATE.md section 5 ("Never" table) and section 7 (verify independence), and the
+Phase 2c rule that only jobwatch/tools.py touches the network or writes to disk.
+
+Written by Claude Code (Claude Opus 5.5), 2026-11-10. AST-based. Scope as GATE.md states it:
+"the package" means every .py file under jobwatch/; "the loop path" means loop, tools, policy,
+providers, verify, loop_replay and cli. These tests do not exempt the modules imported from JS1.
+"""
+import ast
+import subprocess
+import sys
+from pathlib import Path
+
+import pytest
+
+PKG = Path(__file__).resolve().parents[2] / "jobwatch"
+ALL = sorted(p for p in PKG.rglob("*.py"))
+LOOP_PATH = sorted([PKG / n for n in ("loop.py", "tools.py", "policy.py", "verify.py", "loop_replay.py", "cli.py")]
+                   + list((PKG / "providers").glob("*.py")))
+JS1_JUDGE_MODULES = ("jobwatch.judge", "jobwatch.judge_cli", "jobwatch.backends", "jobwatch.prompt",
+                     "jobwatch.sample", "jobwatch.experiment", "jobwatch.run", "jobwatch.replay")
+
+NETWORK_MODULES = {"urllib.request", "http.client", "socket", "ssl", "requests", "urllib3", "httpx",
+                   "smtplib", "ftplib", "telnetlib", "poplib", "imaplib", "subprocess"}
+# Qualified calls (module.function) and Path-style methods (any receiver).
+WRITE_QUALIFIED = {"os": {"replace", "rename", "renames", "makedirs", "mkdir", "symlink", "link", "fdopen", "truncate"},
+                   "shutil": {"copy", "copy2", "copyfile", "copytree", "move"},
+                   "tempfile": {"mkstemp", "mkdtemp", "NamedTemporaryFile", "TemporaryFile"}}
+WRITE_METHODS = {"write_bytes", "write_text", "mkdir", "touch", "symlink_to", "hardlink_to", "rename", "mkstemp",
+                 "fdopen", "atomic_write"}
+DELETE_QUALIFIED = {"os": {"remove", "unlink", "rmdir", "removedirs"}, "shutil": {"rmtree"}}
+DELETE_METHODS = {"unlink", "rmdir", "rmtree"}
+READ_CALLS = {"read_bytes", "read_text"}
+
+
+def rel(p):
+    return p.relative_to(PKG.parent).as_posix()
+
+
+def _calls(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Call):
+            f = node.func
+            name = f.attr if isinstance(f, ast.Attribute) else f.id if isinstance(f, ast.Name) else None
+            yield node, name
+
+
+def _receiver(node):
+    f = node.func
+    return f.value.id if isinstance(f, ast.Attribute) and isinstance(f.value, ast.Name) else None
+
+
+def _matches(node, name, qualified, methods):
+    recv = _receiver(node)
+    if recv in qualified:
+        return name in qualified[recv]
+    return isinstance(node.func, ast.Attribute) and name in methods
+
+
+def _imports(tree):
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Import):
+            for a in node.names:
+                yield a.name
+        elif isinstance(node, ast.ImportFrom) and node.level == 0 and node.module:
+            yield node.module
+            for a in node.names:
+                yield f"{node.module}.{a.name}"
+
+
+def _open_mode(node):
+    mode = node.args[1] if len(node.args) > 1 else next((k.value for k in node.keywords if k.arg == "mode"), None)
+    return mode.value if isinstance(mode, ast.Constant) and isinstance(mode.value, str) else None
+
+
+def findings(path, kind):
+    tree = ast.parse(path.read_text(encoding="utf-8"))
+    out = []
+    if kind == "network":
+        out += [f"import {m}" for m in _imports(tree) if m in NETWORK_MODULES]
+        out += [f"{n}()" for _, n in _calls(tree) if n in ("urlopen", "build_opener", "HTTPSConnection", "HTTPConnection")]
+    elif kind == "write":
+        for node, n in _calls(tree):
+            if _matches(node, n, WRITE_QUALIFIED, WRITE_METHODS):
+                out.append(f"{n}() line {node.lineno}")
+            if n == "open" and isinstance(node.func, ast.Name):
+                mode = _open_mode(node)
+                if mode is None or set(mode) & set("wax+"):
+                    out.append(f"open(..., {mode!r}) line {node.lineno}")
+    elif kind == "delete":
+        out += [f"{n}() line {node.lineno}" for node, n in _calls(tree) if _matches(node, n, DELETE_QUALIFIED, DELETE_METHODS)]
+    elif kind == "read":
+        for node, n in _calls(tree):
+            if n in READ_CALLS or (n == "open" and isinstance(node.func, ast.Name)):
+                out.append(f"{n}() line {node.lineno}")
+    elif kind == "non_get":
+        for node in ast.walk(tree):
+            if isinstance(node, ast.keyword) and node.arg == "method" and isinstance(node.value, ast.Constant) \
+                    and str(node.value.value).upper() != "GET":
+                out.append(f"method={node.value.value!r} line {node.value.lineno}")
+        out += [f"import {m}" for m in _imports(tree) if m == "smtplib"]
+    elif kind == "env":
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Attribute) and node.attr in ("environ", "getenv", "environb"):
+                out.append(f"os.{node.attr} line {node.lineno}")
+    return out
+
+
+OUTSIDE_TOOLS = [p for p in ALL if p.name != "tools.py" or p.parent != PKG]
+
+
+@pytest.mark.parametrize("path", OUTSIDE_TOOLS, ids=rel)
+def test_no_network_call_outside_tools(path):
+    assert findings(path, "network") == []
+
+
+@pytest.mark.parametrize("path", OUTSIDE_TOOLS, ids=rel)
+def test_no_file_write_call_outside_tools(path):
+    assert findings(path, "write") == []
+
+
+@pytest.mark.parametrize("path", ALL, ids=rel)
+def test_no_delete_call_in_package(path):
+    assert findings(path, "delete") == []
+
+
+@pytest.mark.parametrize("path", [p for p in OUTSIDE_TOOLS if p.name != "verify.py"], ids=rel)
+def test_no_file_read_outside_tools_and_verify(path):
+    assert findings(path, "read") == []
+
+
+def test_verify_reads_only_with_open_rb():
+    tree = ast.parse((PKG / "verify.py").read_text(encoding="utf-8"))
+    modes = [_open_mode(n) for n, name in _calls(tree) if name == "open" and isinstance(n.func, ast.Name)]
+    assert modes == ["rb"]
+    assert findings(PKG / "verify.py", "write") == [] and findings(PKG / "verify.py", "network") == []
+
+
+@pytest.mark.parametrize("path", ALL, ids=rel)
+def test_no_non_get_method_or_smtplib_in_package(path):
+    assert findings(path, "non_get") == []
+
+
+@pytest.mark.parametrize("path", LOOP_PATH, ids=rel)
+def test_no_environment_read_in_loop_path(path):
+    assert findings(path, "env") == []
+
+
+def test_verify_imports_only_the_standard_library():
+    tree = ast.parse((PKG / "verify.py").read_text(encoding="utf-8"))
+    tops = {m.split(".")[0] for m in _imports(tree)}
+    rel_imports = [n for n in ast.walk(tree) if isinstance(n, ast.ImportFrom) and n.level > 0]
+    assert rel_imports == [] and "jobwatch" not in tops
+    assert tops <= set(sys.stdlib_module_names), tops - set(sys.stdlib_module_names)
+
+
+def test_loop_and_verify_never_import_the_judge():
+    code = ("import sys, jobwatch.cli as c\n"
+            "c._main_js2(['verify', 'runs/none'], None, None, None, None, None)\n"
+            "import jobwatch.loop, jobwatch.loop_replay\n"
+            f"bad = [m for m in {JS1_JUDGE_MODULES!r} if m in sys.modules]\n"
+            "print(bad); sys.exit(1 if bad else 0)\n")
+    r = subprocess.run([sys.executable, "-c", code], cwd=PKG.parent, capture_output=True, text=True)
+    assert r.returncode == 0, r.stdout + r.stderr
