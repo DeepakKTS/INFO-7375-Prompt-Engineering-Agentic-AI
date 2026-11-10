@@ -85,9 +85,11 @@ hits="$(echo "$TRACKED" | grep -E '(^|/)(\.env[^/]*|\.venv|venv|__pycache__|\.py
 hits="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES" | xargs grep -n -I -E 'sk-ant-[A-Za-z0-9_-]{10,}|ghp_[A-Za-z0-9]{20,}|github_pat_[A-Za-z0-9_]{20,}|AKIA[0-9A-Z]{16}|-----BEGIN [A-Z ]*PRIVATE KEY-----' 2>/dev/null)"
 [ -z "$hits" ] && good "no credential patterns outside raw response bodies" || { bad "possible credentials:"; echo "$hits" | head -20; }
 
-# 11. Persona privacy: emails outside example.com, except in raw response bodies (employers' own addresses)
+# 11. Persona privacy: emails outside example.com, except in raw response bodies (employers' own addresses).
+#     A match right after "://" is URL userinfo (the B03 trick URL, JS1's URL-check cases), not an email.
 SCAN="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES")"
-hits="$(echo "$SCAN" | xargs grep -n -o -I -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null | grep -v -i '@example\.com')"
+hits="$(echo "$SCAN" | xargs grep -n -o -I -E '(://)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null \
+        | grep -v -E '^[^:]+:[0-9]+:://' | grep -v -i '@example\.com')"
 [ -z "$hits" ] && good "every email outside raw response bodies is @example.com" || { bad "non-example.com emails (check each):"; echo "$hits" | head -20; }
 
 # 12. Personal denylist: one term per line in ~/.js2_denylist (or ~/.js1_denylist). Do not list your name.
