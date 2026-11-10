@@ -15,9 +15,9 @@ Listed 2026-11-10. Claude Code (Claude Opus 5.5) did not fetch or read any page 
 
 | Source | URL | Used for | Read by Deepak |
 |---|---|---|---|
-| Greenhouse Job Board API (the URL in JS1's SOURCES.md at b91c877) | https://developers.greenhouse.io/job-board.html | the Greenhouse endpoint | TODO(Deepak): yes or no |
-| Lever postings API | https://github.com/lever/postings-api | the Lever endpoints, US and EU | TODO(Deepak): yes or no |
-| Ashby public job posting API | https://developers.ashbyhq.com/docs/public-job-posting-api | the Ashby endpoint | TODO(Deepak): yes or no |
+| Greenhouse Job Board API (the URL in JS1's SOURCES.md at b91c877) | https://developers.greenhouse.io/job-board.html | the Greenhouse endpoint | Not read by Deepak |
+| Lever postings API | https://github.com/lever/postings-api | the Lever endpoints, US and EU | Not read by Deepak |
+| Ashby public job posting API | https://developers.ashbyhq.com/docs/public-job-posting-api | the Ashby endpoint | Not read by Deepak |
 | A third-party Lever API guide | https://100hires.com/lever-api.html | the defensive non-JSON row in GATE.md section 4 | no (GATE.md section 4: "not read by me") |
 
 ## Code and other material reused
