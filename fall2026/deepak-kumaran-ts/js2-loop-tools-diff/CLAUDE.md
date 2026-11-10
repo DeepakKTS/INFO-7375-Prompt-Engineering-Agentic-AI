@@ -43,5 +43,5 @@ Leave every Deepak marker in place in those files. presubmit_check.sh fails whil
 - Protected files: examples/persona_resume.json, labels/, prompts/, tests/conftest.py, plus Deepak's files listed above. If you think a protected file is wrong, tell Deepak why; don't edit it.
 - Do not call the Anthropic API or run the Claude judge.
 - Stack: Python 3.15.0, stdlib urllib for HTTP, pinned requirements.txt with only anthropic, jsonschema and pytest unless Deepak approves more. One entry point: python -m jobwatch.
-- No TODO, FIXME, stub, placeholder pass or "not implemented" path in delivered code. Deepak's TODO(Deepak) markers in the .md files are intentional until Gate 6.
+- No TODO, FIXME, stub, placeholder pass or "not implemented" path in delivered code. Deepak's marker lines in the .md files are intentional until Gate 6.
 - After every change, list the files touched and the GATE.md clause each change serves.
