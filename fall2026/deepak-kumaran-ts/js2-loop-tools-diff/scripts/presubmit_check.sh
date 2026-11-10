@@ -13,6 +13,26 @@ fail=0
 bad()  { echo "FAIL  $*"; fail=1; }
 good() { echo "ok    $*"; }
 
+# Email check (used in check 11). Exact allow-list: 7 URL-userinfo strings (not emails) in these files, as flagged on 2026-11-10.
+# Each entry is file:match; the same string in any other file, and every other match, is flagged.
+# Each "@" is quoted apart ("...""@""...") so this script's own text never matches the email pattern.
+EMAIL_ALLOW=(
+  "GATE.md:boards-api.greenhouse.io""@""evil.com"                                               # W03 example
+  "POLICY.md:boards-api.greenhouse.io""@""evil.com"                                             # B03 request
+  "tests/js2/checks.py:boards-api.greenhouse.io""@""evil.com"                                   # check_B03
+  "evidence/pytest/20261110T193805Z-full-v.txt:user""@""boards-api.greenhouse.io"               # JS1 URL-check case id
+  "evidence/pytest/20261110T195646Z-full-v.txt:user""@""boards-api.greenhouse.io"               # JS1 URL-check case id
+  "evidence/review/full-suite-after-A3-20261110T204658Z.txt:user""@""boards-api.greenhouse.io"  # JS1 URL-check case id
+  "evidence/review/full-suite-after-patch-20261110T204159Z.txt:user""@""boards-api.greenhouse.io"  # JS1 URL-check case id
+)
+email_hits() {  # reads file paths on stdin; prints file:line:match for each match not allowed
+  xargs grep -H -n -o -I -E '[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null | grep -v -i '@example\.com' \
+    | EMAIL_ALLOW_LIST="$(printf '%s\n' "${EMAIL_ALLOW[@]}")" awk -F: \
+        'BEGIN { n = split(ENVIRON["EMAIL_ALLOW_LIST"], a, "\n"); for (i = 1; i <= n; i++) ok[a[i]] = 1 } !(($1 ":" $3) in ok)'
+}
+# Probe: bash scripts/presubmit_check.sh --email-probe FILE...  (runs only this check on FILE...)
+[ "${1:-}" = "--email-probe" ] && { shift; printf '%s\n' "$@" | email_hits; exit 0; }
+
 git rev-parse --is-inside-work-tree >/dev/null 2>&1 || { echo "FAIL  not inside a git repo"; exit 1; }
 PREFIX="$(git rev-parse --show-prefix)"; PREFIX="${PREFIX%/}"
 [ -n "$PREFIX" ] || { echo "FAIL  run this from the assignment folder, not the repo root"; exit 1; }
@@ -86,10 +106,8 @@ hits="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES" | xargs grep -n -I -E 'sk-ant
 [ -z "$hits" ] && good "no credential patterns outside raw response bodies" || { bad "possible credentials:"; echo "$hits" | head -20; }
 
 # 11. Persona privacy: emails outside example.com, except in raw response bodies (employers' own addresses).
-#     A match right after "://" is URL userinfo (the B03 trick URL, JS1's URL-check cases), not an email.
 SCAN="$(echo "$TRACKED" | grep -v -E "$RAW_BODIES")"
-hits="$(echo "$SCAN" | xargs grep -n -o -I -E '(://)?[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}' 2>/dev/null \
-        | grep -v -E '^[^:]+:[0-9]+:://' | grep -v -i '@example\.com')"
+hits="$(echo "$SCAN" | email_hits)"
 [ -z "$hits" ] && good "every email outside raw response bodies is @example.com" || { bad "non-example.com emails (check each):"; echo "$hits" | head -20; }
 
 # 12. Personal denylist: one term per line in ~/.js2_denylist (or ~/.js1_denylist). Do not list your name.
