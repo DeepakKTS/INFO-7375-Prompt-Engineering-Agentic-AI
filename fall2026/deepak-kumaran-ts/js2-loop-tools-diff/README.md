@@ -52,8 +52,8 @@ Only runs committed in this folder are listed. Both loop runs are live runs, mad
 | verify of 20261110T200830Z | 15:08 | offline | exit 2: `SUSPECT lever:lever: 6 postings in prior run 20261110T200748Z, 0 now` | `evidence/finished-wrong-answer/` |
 | My own curl check | 15:17:01 | live, my terminal | api.eu.lever.co 6, api.lever.co 0 | `evidence/finished-wrong-answer/deepak-curl-check.txt` |
 | Full test suite | 15:46 | SEEDED (fake transport, temp folders; no network) | 445 passed | `evidence/review/full-suite-after-A3-20261110T204658Z.txt` |
-| My review commands, run myself: the red test at 7309446 | 15:52:09 | SEEDED fault injection | 2 failed | `evidence/review/deepak-red-at-7309446.txt` |
-| My review commands, run myself: green test, full suite, diff stat after 3a4c1fb | 15:52:10 | SEEDED fault injection / offline | 2 passed; 445 passed; jobwatch/loop.py 15 insertions, 10 deletions | `evidence/review/deepak-green-and-diff.txt` |
+| My review commands, run myself: the red test at 7309446 | 15:52:09 | SEEDED fault injection | 2 failed | `evidence/review/deepak-red-at-7309446.txt` (commit 7ebb3ba, 15:52 ET) |
+| My review commands, run myself: green test, full suite, diff stat after 3a4c1fb | 15:52:10 | SEEDED fault injection / offline | 2 passed; 445 passed; jobwatch/loop.py 15 insertions, 10 deletions | `evidence/review/deepak-green-and-diff.txt` (commit 7ebb3ba, 15:52 ET) |
 | Fresh-clone test at d092939 (`git clone --depth 1`, venv, install) | 15:57:20 | offline | pytest 445 passed; verify 20261110T200748Z exit 0; verify 20261110T200830Z exit 2 (SUSPECT); replay of both exit 0. The live loop was not rerun, to avoid 4 extra live GETs. | `evidence/fresh-clone/20261110T205719Z.txt` |
 
 The test suite's loop runs are SEEDED: a fake transport serves the fixtures in `fixtures/seeded/` (each file named SEEDED_*) inside temporary folders, and the runs are labelled "SEEDED" in their summary and trace. None of them is committed.
