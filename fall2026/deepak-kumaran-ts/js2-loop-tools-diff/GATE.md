@@ -184,3 +184,12 @@ Plausible but wrong implementations. Each needs a test that fails against it. Ph
 **Exit codes.** 0 when nothing is flagged; 2 when anything is flagged. 2 collides with no loop exit code.
 
 A second independent check, outside the program, is my own manual curl capture in evidence/manual-capture/.
+
+## Amendments
+
+Amendments come after the Gate 1 commit 891446a. Each is dated and names the evidence that caused it.
+
+- A-1, 2026-11-10, Deepak. Cause: evidence/pytest/20261110T193805Z-full-v.txt, 17 source-scan failures, all in modules imported unchanged from JS1 b91c877. Change: the source scans in section 5 and section 7 still scan every module in the package. These modules, imported unchanged from JS1, are named as legacy: jobwatch/fetch.py, judge_cli.py, experiment.py, evidence.py, labels.py, inputs.py, judge.py, prompt.py, replay.py, run.py, saved_run.py, state.py. A legacy module keeps its JS1 file and network behavior, and is reachable only through the JS1 subcommands. Any module not on this list that makes a forbidden call fails the scan. A test computes the transitive import closure of the loop path and fails if any legacy module is in it. The JS2 guarantees in section 5 (GET only, writes only under runs/, no delete, no environment reads) are claimed for the loop path, not for the legacy JS1 subcommands. test_legacy_modules_are_byte_identical_to_b91c877 checks that each legacy module is unchanged; persona.py holds a JS2 copy of JS1's check_resume so the loop path never imports inputs.py.
+- A-2, 2026-11-10, Deepak. Cause: Gate 2 report. verify also lists directories under runs/ with os.listdir and os.path.isdir to find the prior run. This is read-only metadata access and is added to the section 7 Reads exception.
+
+Wording drafted in the claude.ai chat; the decision is mine.
