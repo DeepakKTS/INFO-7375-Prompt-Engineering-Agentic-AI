@@ -30,3 +30,8 @@ The manual curl capture that Deepak specified, made with curl outside the progra
 
 ## A check Deepak ran himself
 - `evidence/finished-wrong-answer/deepak-curl-check.txt`, run by Deepak in his own terminal: "Tue Nov 10 15:17:01 EST 2026", api.eu.lever.co 6, api.lever.co 0.
+- Command (added to this README afterward; the .txt file was not edited):
+
+```
+{ date; for h in api.eu.lever.co api.lever.co; do printf '%s ' "$h"; curl -sS "https://$h/v0/postings/lever?mode=json" | python3 -c 'import json,sys; print(len(json.load(sys.stdin)))'; done; } | tee evidence/finished-wrong-answer/deepak-curl-check.txt
+```
