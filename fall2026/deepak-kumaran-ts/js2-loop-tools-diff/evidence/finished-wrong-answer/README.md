@@ -27,3 +27,6 @@ Live runs, not SEEDED. Both runs were made by Claude Code (Claude Opus 5.5) in D
 
 ## The second independent check
 The manual curl capture that Deepak specified, made with curl outside the program before any JS2 code existed. Claude Code ran the curl commands in Deepak's session at his instruction (CAPTURE.md says so): `evidence/manual-capture/20261110T184001Z/` and its table `evidence/manual-capture/CAPTURE.md` (rows 03 and 04).
+
+## A check Deepak ran himself
+- `evidence/finished-wrong-answer/deepak-curl-check.txt`, run by Deepak in his own terminal: "Tue Nov 10 15:17:01 EST 2026", api.eu.lever.co 6, api.lever.co 0.
