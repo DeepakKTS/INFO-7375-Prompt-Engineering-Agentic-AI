@@ -109,7 +109,7 @@ The test suite's loop runs are SEEDED: a fake transport serves the fixtures in `
 - Saved pytest outputs contain absolute paths of the machine they ran on.
 
 ## Credits
-- Claude Code (Claude Opus 5.5), 2026-11-10, in my session, wrote:
+- Claude Code (claude-opus-5-5, Claude Opus 5.5), 2026-11-10, in my session, wrote:
   - the JS2 code and tests (except my review test);
   - the SEEDED fixtures;
   - this README, SOURCES.md, CAPTURE.md, the finished-wrong-answer README, the review evidence README, and REVIEW.md sections 2 to 5;
