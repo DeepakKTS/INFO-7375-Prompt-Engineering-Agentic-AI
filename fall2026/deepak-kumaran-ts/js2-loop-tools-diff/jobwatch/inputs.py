@@ -42,27 +42,20 @@ def load_resume(path):
         raw = Path(path).read_bytes()
     except OSError:
         raise Stop(REFUSED, f"résumé refused: cannot read {path}") from None
-    return check_resume(raw), raw
-
-
-def check_resume(raw, schema=None):
-    """The checks of load_resume on bytes already read. JS2's loop passes bytes and the schema
-    it read through jobwatch/tools.py; schema=None reads SCHEMA_PATH as JS1 did."""
     try:
         data = json.loads(raw)
     except ValueError:
         raise Stop(REFUSED, "résumé refused: not valid JSON") from None
-    _check_schema(data, schema)
+    _check_schema(data)
     _check_target_terms(data)
     found = privacy_findings(data)
     if found:
         raise Stop(REFUSED, "résumé refused: " + "; ".join(found))
-    return data
+    return data, raw
 
 
-def _check_schema(data, schema=None):
-    if schema is None:
-        schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
+def _check_schema(data):
+    schema = json.loads(SCHEMA_PATH.read_text(encoding="utf-8"))
     error = jsonschema.exceptions.best_match(jsonschema.Draft202012Validator(schema).iter_errors(data))
     if error is None:
         return
