@@ -147,20 +147,20 @@ Plausible but wrong implementations. Each needs a test that fails against it. Ph
 
 | ID | Wrong version | Example input it gets wrong | Test that catches it |
 |---|---|---|---|
-| W01 | Path check with str.startswith | runs-evil/x.json beside runs/ | |
-| W02 | Host check by substring or endswith | boards-api.greenhouse.io.evil.com; https://evil.com/boards-api.greenhouse.io | |
-| W03 | Host taken from the raw string, not the parsed URL | https://boards-api.greenhouse.io@evil.com/ | |
-| W04 | Following redirects | a 302 from an allowed host (SEEDED mock transport) | |
-| W05 | Path check without realpath | a symlink inside runs/ pointing outside | |
-| W06 | Failed board counted as 0 new | a 404 board | |
-| W07 | Timeout reported as FINISHED | a board that times out twice (SEEDED) | |
-| W08 | Retries not counted against max_requests | many boards with 5xx (SEEDED) | |
-| W09 | Retrying a 404 | a bad board token | |
-| W10 | Lever HTML body parsed as an empty list | an HTML 200 response (SEEDED) | |
-| W11 | Empty 200 accepted with no independent check | an empty board that had postings last run | |
-| W12 | Host included in board identity | the same board moved from api.eu.lever.co to api.lever.co gets a new state key, so the loop treats its second run as a baseline | |
-| W13 | Duplicate (system, slug) accepted | one board listed twice with two hosts | |
-| W14 | Host checked against the allow-list but not against the board's system | {system: greenhouse, host: api.lever.co} | |
+| W01 | Path check with str.startswith | runs-evil/x.json beside runs/ | test_B08_prefix_trick; shown by test_W01_startswith_path_check_is_caught_by_B08 |
+| W02 | Host check by substring or endswith | boards-api.greenhouse.io.evil.com; https://evil.com/boards-api.greenhouse.io | test_B02_suffix_trick_host; shown by test_W02_substring_host_check_is_caught_by_B02 |
+| W03 | Host taken from the raw string, not the parsed URL | https://boards-api.greenhouse.io@evil.com/ | test_B03_userinfo_trick; shown by test_W03_host_from_raw_string_is_caught_by_B03 |
+| W04 | Following redirects | a 302 from an allowed host (SEEDED mock transport) | test_B06_redirect_refused; shown by test_W04_following_redirects_is_caught_by_B06 |
+| W05 | Path check without realpath | a symlink inside runs/ pointing outside | test_B09_symlink_escape; shown by test_W05_path_check_without_realpath_is_caught_by_B09 |
+| W06 | Failed board counted as 0 new | a 404 board | test_404_board_counts_null_not_zero; shown by test_W06_failed_board_counted_as_zero_new_is_caught |
+| W07 | Timeout reported as FINISHED | a board that times out twice (SEEDED) | test_timeout_twice_board_failed_run_incomplete; shown by test_W07_timeout_reported_as_finished_is_caught |
+| W08 | Retries not counted against max_requests | many boards with 5xx (SEEDED) | test_retries_count_against_max_requests; shown by test_W08_retries_not_counted_is_caught |
+| W09 | Retrying a 404 | a bad board token | test_404_fetched_once_no_retry; shown by test_W09_retrying_a_404_is_caught |
+| W10 | Lever HTML body parsed as an empty list | an HTML 200 response (SEEDED) | test_html_200_is_failed_not_empty; shown by test_W10_lever_html_parsed_as_empty_list_is_caught |
+| W11 | Empty 200 accepted with no independent check | an empty board that had postings last run | test_verify_flags_suspect_after_6_then_0; shown by test_W11_empty_200_with_no_independent_check_is_caught |
+| W12 | Host included in board identity | the same board moved from api.eu.lever.co to api.lever.co gets a new state key, so the loop treats its second run as a baseline | test_identity_ignores_host; shown by test_W12_host_in_board_identity_is_caught |
+| W13 | Duplicate (system, slug) accepted | one board listed twice with two hosts | test_duplicate_board_is_error; shown by test_W13_duplicate_board_accepted_is_caught |
+| W14 | Host checked against the allow-list but not against the board's system | {system: greenhouse, host: api.lever.co} | test_host_system_mismatch_is_error; shown by test_W14_host_not_checked_against_system_is_caught |
 
 ## 7. Independent check
 
