@@ -12,6 +12,7 @@ PY="${PYTHON:-.venv/bin/python}"
 fail=0
 bad()  { echo "FAIL  $*"; fail=1; }
 good() { echo "ok    $*"; }
+MARK='TODO''(Deepak)'   # the marker string, split so this file does not contain it
 
 # Email check (used in check 11). Exact allow-list: 7 URL-userinfo strings (not emails) in these files, as flagged on 2026-11-10.
 # Each entry is file:match; the same string in any other file, and every other match, is flagged.
@@ -51,10 +52,10 @@ done
 gate_commit=""
 for c in $(git log --reverse --format=%H -- GATE.md POLICY.md); do
   g="$(git show "$c:./GATE.md" 2>/dev/null)"; p="$(git show "$c:./POLICY.md" 2>/dev/null)"
-  if [ -n "$g" ] && [ -n "$p" ] && ! printf '%s\n%s' "$g" "$p" | grep -q 'TODO(Deepak)'; then gate_commit="$c"; break; fi
+  if [ -n "$g" ] && [ -n "$p" ] && ! printf '%s\n%s' "$g" "$p" | grep -q -F "$MARK"; then gate_commit="$c"; break; fi
 done
 py_commit="$(git log --reverse --format=%H -- '*.py' | head -1)"
-if [ -z "$gate_commit" ]; then bad "no commit has GATE.md and POLICY.md without TODO(Deepak) markers"
+if [ -z "$gate_commit" ]; then bad "no commit has GATE.md and POLICY.md without $MARK markers"
 elif [ -z "$py_commit" ]; then bad "no .py file committed in this folder"
 elif [ "$gate_commit" = "$py_commit" ]; then bad "GATE.md/POLICY.md and the first .py were committed together"
 elif git merge-base --is-ancestor "$gate_commit" "$py_commit"; then good "GATE.md + POLICY.md (${gate_commit:0:7}) committed before the first .py (${py_commit:0:7})"
@@ -85,10 +86,10 @@ done
 grep -q '^SUSPECT' evidence/finished-wrong-answer/verify-20261110T200830Z.txt 2>/dev/null \
   && good "verify output records SUSPECT" || bad "verify output has no SUSPECT flag"
 
-# 7. No TODO(Deepak) or template markers in tracked docs (CLAUDE.md mentions the markers on purpose)
+# 7. No Deepak markers or template markers in tracked docs (CLAUDE.md is excluded, as in JS1)
 MD="$(echo "$TRACKED" | grep -E '\.md$' | grep -v -x 'CLAUDE.md')"
 hits="$(echo "$MD" | xargs grep -n -E 'TODO\(Deepak\)|YYYY-MM-DD|YOU WRITE|YOU CHOOSE|## Entry template|<!--' 2>/dev/null)"
-[ -z "$hits" ] && good "no TODO(Deepak) or template markers in docs" || { bad "markers remain:"; echo "$hits" | head -40; }
+[ -z "$hits" ] && good "no $MARK or template markers in docs" || { bad "markers remain:"; echo "$hits" | head -40; }
 
 # 8. No open work in code
 CODE="$(echo "$TRACKED" | grep -E '\.(py|sh|toml|cfg)$' | grep -v -x 'scripts/presubmit_check.sh')"
